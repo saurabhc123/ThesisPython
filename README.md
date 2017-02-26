@@ -1,0 +1,1 @@
+Initial experiments based on the paper [**Source Free Transfer Learning for Text Classification**] (http://www.ntu.edu.sg/home/sinnopan/publications/[AAAI14]Source%20Free%20Transfer%20Learning%20for%20Text%20Classification.pdf)
