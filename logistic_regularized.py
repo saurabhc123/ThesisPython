@@ -19,106 +19,67 @@ class Data(object):
 
     def likelihood(self, betas, alpha=0):
         """ Likelihood of the data under the given settings of parameters. """
-
+        
         # Data likelihood
         l = 0
         for i in range(self.n):
             l += log(sigmoid(self.y_train[i] * \
                              np.dot(betas, self.x_train[i,:])))
-
+        
         # Prior likelihood
         for k in range(1, self.x_train.shape[1]):
             l -= (alpha / 2.0) * betas[k]**2
-
+            
         return l
 
 
-class SyntheticData(Data):
-
-    def __init__(self, n, d):
-        """ Create N instances of d dimensional input vectors and a 1D
-        class label (-1 or 1). """
-
-	self.n = n
-	self.d = d
-
-        means = .05 * np.random.randn(2, d)
-
-        self.x_train = np.zeros((n, d))
-        self.y_train = np.zeros(n)
-        for i in range(n):
-            if np.random.random() > .5:
-                y = 1
-            else:
-                y = 0
-            self.x_train[i, :] = np.random.random(d) + means[y, :]
-            self.y_train[i] = 2.0 * y - 1
-
-        self.x_test = np.zeros((n, d))
-        self.y_test = np.zeros(n)
-        for i in range(n):
-            if np.random.randn() > .5:
-                y = 1
-            else:
-                y = 0
-            self.x_test[i, :] = np.random.random(d) + means[y, :]
-            self.y_test[i] = 2.0 * y - 1
 
 
-# class TsvData(Data):
-#
-#     def __init__(self, train_path, test_path):
-#         x_train, x_test = [], []
-#         y_train, y_test = [], []
-#
-#         for path, x, y in ((train_path, x_train, y_train),
-#                            (test_path, x_test, y_test)):
-#             with open(path, "r") as file:
-#                 for line in file:
-#                     numbers = [int(n) for n in line[:-1].split("\t")]
-#                     x.append(numbers[:-1])
-#                     y.append(numbers[-1])
-#
-#         self.x_train = np.array(x_train)
-#         self.x_test = np.array(x_test)
-#         self.y_train = np.array(y_train)
-#         self.y_test = np.array(y_test)
-#
-# 	self.n = y_train.shape[0]
-# 	self.d = x_train.shape[1]
+class TsvData(Data):
 
+    def __init__(self, train_data, test_data):
+
+
+        self.x_train = np.array(train_data[:,1:])
+        self.x_test = np.array(test_data[:,1:])
+        self.y_train = np.array(train_data[:,0])
+        self.y_test = np.array(test_data[:,0])
+
+        self.n = self.y_train.shape[0]
+        self.d = self.x_train.shape[1]
+        
 
 class Model(object):
     """ A simple logistic regression model with L2 regularization (zero-mean
     Gaussian priors on parameters). """
 
     def __init__(self, d):
-	""" Create model for input data consisting of d dimensions. """
+        """ Create model for input data consisting of d dimensions. """
 
-	# Initialize parameters to zero, for lack of a better choice.
+        # Initialize parameters to zero, for lack of a better choice.
         self.betas = np.zeros(d)
 
     def train(self, data, alpha=0):
         """ Define the gradient and hand it off to a scipy gradient-based
         optimizer. """
 
-	# Set alpha so it can be referred to later if needed
-	self.alpha = alpha
+        # Set alpha so it can be referred to later if needed
+        self.alpha = alpha
 
         # Define the derivative of the likelihood with respect to beta_k.
         # Need to multiply by -1 because we will be minimizing.
         dB_k = lambda B, k: (k > 0) * self.alpha * B[k] - np.sum([ \
-                                    train_source_labels[i] * train_source[i, k] * \
-                                    sigmoid(-train_source_labels[i] *\
-                                            np.dot(B, train_source[i,:])) \
-                                    for i in range(150)])
-
+                                    data.y_train[i] * data.x_train[i, k] * \
+                                    sigmoid(-data.y_train[i] *\
+                                            np.dot(B, data.x_train[i,:])) \
+                                    for i in range(data.n)])
+        
         # The full gradient is just an array of componentwise derivatives
         dB = lambda B: np.array([dB_k(B, k) \
                                  for k in range(data.x_train.shape[1])])
-
-	# The function to be minimized
-	func = lambda B: -data.likelihood(betas=B, alpha=self.alpha)
+        
+        # The function to be minimized
+        func = lambda B: -data.likelihood(betas=B, alpha=self.alpha)
 
         # Optimize
         self.betas = fmin_bfgs(func, self.betas, fprime=dB)
@@ -137,7 +98,7 @@ class Model(object):
         for i in range(data.n):
             p_y1[i] = self.predict(data.x_test[i,:])
         return p_y1
-
+        
     def plot_training_reconstruction(self, data):
         plot(np.arange(data.n), .5 + .5 * data.y_train, 'bo')
         plot(np.arange(data.n), self.training_reconstruction(data), 'rx')
@@ -153,53 +114,51 @@ if __name__ == "__main__":
     from pylab import *
     import sys
 
-    # if len(sys.argv) >= 3:
-    #     # Read data from given TSV files
-    #     data = TsvData(sys.argv[1], sys.argv[2])
-    # else:
-    #     # Create 20 dimensional data set with 25 points -- this will be
-    #     # susceptible to overfitting.
-    #     data = SyntheticData(25, 20)
-
-    source_file = '/Users/sneha/Documents/dev/ThesisPython/source.txt'
+    source_file = 'source.txt'
 
     source_data = genfromtxt(source_file, delimiter=',')
     np.random.shuffle(source_data)
 
      # Define training and test splits
-    train_source = source_data[:150,1:]
+    train_source = source_data[:150,:]
     train_source_labels = source_data[:150,0]
 
-    test_source = source_data[151:,1:]
+    test_source = source_data[151:,:]
     test_source_labels = source_data[151:,0]
 
-    lr = Model(100)
+    data = TsvData(train_source, test_source)
+    
+
+    lr = Model(data.d)
 
     # Run for a variety of regularization strengths
     alphas = [0, .001, .01, .1]
     for j, a in enumerate(alphas):
         print "Initial likelihood:"
         print data.likelihood(lr.betas)
-
+        
         # Train the model
         lr.train(data, alpha=a)
-
+        
         # Display execution info
         print "Final betas:"
         print lr.betas
         print "Final likelihood:"
         print data.likelihood(lr.betas)
 
+        predictions = lr.predict(test_source[:,1:].transpose())
+        print predictions
+        
         # Plot the results
-        subplot(len(alphas), 2, 2*j + 1)
-        lr.plot_training_reconstruction(data)
-        ylabel("Alpha=%s" % a)
-        if j == 0:
-            title("Training set reconstructions")
+        #subplot(len(alphas), 2, 2*j + 1)
+        #lr.plot_training_reconstruction(data)
+        #ylabel("Alpha=%s" % a)
+        #if j == 0:
+        #   title("Training set reconstructions")
+        
+        #subplot(len(alphas), 2, 2*j + 2)
+        #lr.plot_test_predictions(data)
+        #if j == 0:
+        #   title("Test set predictions")
 
-        subplot(len(alphas), 2, 2*j + 2)
-        lr.plot_test_predictions(data)
-        if j == 0:
-            title("Test set predictions")
-
-    show()
+    #show()

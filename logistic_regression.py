@@ -9,7 +9,7 @@ from sklearn import linear_model
 from sklearn.metrics import f1_score
 
 
-source_file = '/Users/sneha/Documents/dev/ThesisPython/source.txt'
+source_file = 'source.txt'
 
 source_data = genfromtxt(source_file, delimiter=',')
 np.random.shuffle(source_data)
