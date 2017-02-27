@@ -2,7 +2,7 @@ import gensim
 
 
 def get_model():
-	model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)
+	model = gensim.models.KeyedVectors.load_word2vec_format('../GoogleNews-vectors-negative300.bin', binary=True)
 	model.init_sims(replace=True) # we are no longer training the model so allow it to trim memory 
         return model
 
