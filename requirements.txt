@@ -1,3 +1,4 @@
 gensim
 scipy
 numpy
+sklearn
