@@ -7,6 +7,7 @@ Based on:
 """
 
 from scipy.optimize.optimize import fmin_bfgs
+from sklearn.metrics import f1_score
 import numpy as np
 
 
@@ -38,35 +39,7 @@ class Model(object):
         self.n = self.y_train.shape[0]
         self.d = self.x_train.shape[1]
 
-    def train(self, alpha=0):
-        """ Define the gradient and hand it off to a scipy gradient-based
-        optimizer. """
 
-        # Set alpha so it can be referred to later if needed
-        self.alpha = alpha
-
-        # Define the derivative of the likelihood with respect to beta_k.
-        # Need to multiply by -1 because we will be minimizing.
-        # The following has a dimension of [1 x k] where k = |W|
-        dl_by_dWk = lambda B, k: (k > 0) * self.alpha * B[k] - np.sum([ \
-                                    self.y_train[i] * self.x_train[i, k] * \
-                                    sigmoid(-self.y_train[i] *\
-                                            np.dot(B, self.x_train[i,:])) \
-                                    for i in range(self.n)])
-
-
-
-        # The full gradient is just an array of componentwise derivatives
-        gradient = lambda B: np.array([dl_by_dWk(B, k) \
-                                 for k in range(self.x_train.shape[1])])
-
-        # The function to be minimized
-        # Use the negative log likelihood for the objective function.
-        objectiveFunction = lambda B: -self.likelihood(betas=B, alpha=self.alpha)
-
-        # Optimize
-        print('Optimizing for alpha = {}'.format(alpha))
-        self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
 
     def likelihood(self, betas, alpha=0):
         """ Likelihood of the data under the given settings of parameters. """
@@ -114,7 +87,35 @@ class Model(object):
 
         return (alpha / 2.0) * reg
 
+    def train(self, alpha=0):
+        """ Define the gradient and hand it off to a scipy gradient-based
+        optimizer. """
 
+        # Set alpha so it can be referred to later if needed
+        self.alpha = alpha
+
+        # Define the derivative of the likelihood with respect to beta_k.
+        # Need to multiply by -1 because we will be minimizing.
+        # The following has a dimension of [1 x k] where k = |W|
+        dl_by_dWk = lambda B, k: (k > 0) * self.alpha * B[k] - np.sum([ \
+                                    self.y_train[i] * self.x_train[i, k] * \
+                                    sigmoid(-self.y_train[i] *\
+                                            np.dot(B, self.x_train[i,:])) \
+                                    for i in range(self.n)])
+
+
+
+        # The full gradient is just an array of componentwise derivatives
+        gradient = lambda B: np.array([dl_by_dWk(B, k) \
+                                 for k in range(self.x_train.shape[1])])
+
+        # The function to be minimized
+        # Use the negative log likelihood for the objective function.
+        objectiveFunction = lambda B: -self.likelihood(betas=B, alpha=self.alpha)
+
+        # Optimize
+        print('Optimizing for alpha = {}'.format(alpha))
+        self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
 
     def train_alt(self, alpha=0):
         """ Define the gradient and hand it off to a scipy gradient-based
@@ -153,10 +154,12 @@ class Model(object):
         n = self.x_train.shape[0]
         m_n = x_total.shape[0]
         dwk = 0
+        #print('sfRegStep - First Summation for k={}'.format(k))
         for i in range(n):
             #print('i={}, k={}'.format(i,k))
             dwk +=  -1 * self.y_train[i]*self.x_train[i,k]*sigmoid(self.y_train[i] * np.dot(W, self.x_train[i,:]))
 
+        #print('sfRegStep - Regularization for k={}'.format(k))
         dL = 0
         # import pdb; pdb.set_trace();
         for i in range(n):
@@ -201,18 +204,20 @@ if __name__ == "__main__":
     source_file = 'source.txt'
 
     source_data = genfromtxt(source_file, delimiter=',')
+    validation_data = genfromtxt(source_file, delimiter=',')[55:75,:]
     np.random.shuffle(source_data)
 
      # Define training and test splits
-    train_source = source_data[:150,:]
-    train_source_labels = source_data[:150,0]
+    train_source = source_data[:10,:]
+    train_source_labels = source_data[:10,0]
 
-    test_source = source_data[151:,:]
-    test_source_labels = source_data[151:,0]
+    test_source = source_data[30:40,:]
+    test_source_labels = source_data[30:40,0]
 
     lr = Model(train_source, test_source, train_source[:,1:].shape[1])
 
     # Run for a variety of regularization strengths
+    #alphas = [0.01, .11, 1.1, 11.1]
     alphas = [0, .001, .01, .1]
     for j, a in enumerate(alphas):
         print "Initial likelihood:"
@@ -242,6 +247,8 @@ if __name__ == "__main__":
         #   title("Test set predictions")
 
     #show()
-    predictions = lr.predict(test_source[:,1:].transpose())
+    predictions = lr.predict(validation_data[:,1:].transpose())
+    predictionLabels = map (lambda prediction : 1 if prediction > 0.5 else 0, predictions)
     print "Final Predictions:"
-    print predictions
+    print predictionLabels
+    print f1_score(validation_data[:,0], predictionLabels, average='binary')
