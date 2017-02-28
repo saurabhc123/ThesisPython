@@ -19,18 +19,18 @@ class Data(object):
 
     def likelihood(self, betas, alpha=0):
         """ Likelihood of the data under the given settings of parameters. """
-        
+
         # Data likelihood
         l = 0
         for i in range(self.n):
             l += log(sigmoid(self.y_train[i] * \
                              np.dot(betas, self.x_train[i,:])))
-        
+
         # Prior likelihood
         # More like regularization
         for k in range(1, self.x_train.shape[1]):
             l -= (alpha / 2.0) * betas[k]**2
-            
+
         return l
 
     def likelihood_alt(self, betas, alpha=0):
@@ -39,24 +39,22 @@ class Data(object):
         # Data likelihood
         l = 0
         m = 1
-        similarityMatrix = [[1 for i in range(self.x_train.shape[1])] for j in range(m)]
+        # similarityMatrix = [[1 for i in range(self.x_train.shape[0])] for j in range(m)]
         for i in range(self.n):
             l += log(sigmoid(self.y_train[i] * \
                              np.dot(betas, self.x_train[i,:])))
 
         # ToDo: Add the training and auxiliary data, without the labels.
-        x_total = self.x_train + self.x_test
+        x_total = np.concatenate((self.x_train, self.x_test), axis=0)
 
         # Prior likelihood
         # More like regularization
-        for i in range(1, self.x_train.shape[1]):
-            regularizedValue = 0
-            for j in range(1, x_total.shape[1]):
-                regularizedValue += similarityMatrix[i,j] ** \
-                                    (np.dot(betas, self.x_train[i,:]) - \
-                                     np.dot(betas, x_total[j,:]))
 
-            l -= (alpha / 2.0) * regularizedValue
+        regularizedValue = np.sum(np.sum(1*(np.dot(betas, x_total[i]) - np.dot(betas, x_total[j])**2
+        for j in range(x_total.shape[0])))
+         for i in range(x_train.shape[0]))
+
+        l -= (alpha / 2.0) * regularizedValue
 
         return l
 
@@ -74,17 +72,24 @@ class TsvData(Data):
 
         self.n = self.y_train.shape[0]
         self.d = self.x_train.shape[1]
-        
+
 
 class Model(object):
     """ A simple logistic regression model with L2 regularization (zero-mean
     Gaussian priors on parameters). """
 
-    def __init__(self, d):
+    def __init__(self, train_data, test_data, d):
         """ Create model for input data consisting of d dimensions. """
 
         # Initialize parameters to zero, for lack of a better choice.
         self.betas = np.zeros(d)
+        self.x_train = np.array(train_data[:,1:])
+        self.x_test = np.array(test_data[:,1:])
+        self.y_train = np.array(train_data[:,0])
+        self.y_test = np.array(test_data[:,0])
+
+        self.n = self.y_train.shape[0]
+        self.d = self.x_train.shape[1]
 
     def train(self, data, alpha=0):
         """ Define the gradient and hand it off to a scipy gradient-based
@@ -107,7 +112,7 @@ class Model(object):
         # The full gradient is just an array of componentwise derivatives
         gradient = lambda B: np.array([dl_by_dWk(B, k) \
                                  for k in range(data.x_train.shape[1])])
-        
+
         # The function to be minimized
         # Use the negative log likelihood for the objective function.
         objectiveFunction = lambda B: -data.likelihood(betas=B, alpha=self.alpha)
@@ -115,46 +120,92 @@ class Model(object):
         # Optimize
         self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
 
-    def train_alt(self, data, alpha=0):
+
+    def likelihood_alt(self, similarityMatrix, betas, alpha=0):
+        """ Likelihood of the data under the given settings of parameters. """
+
+        # Data likelihood
+        l = 0
+        m = 1
+        # import pdb; pdb.set_trace();
+        similarityMatrix = [[1 for i in range(self.x_train.shape[0])] for j in range(m)]
+        for i in range(self.n):
+            l += log(sigmoid(self.y_train[i] * \
+                             np.dot(betas, self.x_train[i,:])))
+
+        # ToDo: Add the training and auxiliary data, without the labels.
+        x_total = np.concatenate((self.x_train, self.x_test), axis=0)
+
+        # Prior likelihood
+        # More like regularization
+        # import pdb;pdb.set_trace();
+        reg = 0
+
+
+        for i in range(self.x_train.shape[0]):
+            for j in range(x_total.shape[0]):
+                # TODO: change 1 to I_ij
+                reg += 1* \
+                (np.dot(betas, x_total[i]) - \
+                 np.dot(betas, x_total[j]))**2
+
+        return (alpha / 2.0) * reg
+
+
+
+    def train_alt(self, alpha=0):
         """ Define the gradient and hand it off to a scipy gradient-based
         optimizer. """
 
         # Set alpha so it can be referred to later if needed
         self.alpha = alpha
 
-        similarityMatrix = [[1 for m in range(self.x_train.shape[1])] for n in range(self.x_test.shape[1])]
+        similarityMatrix = [[1 for m in range(self.x_train.shape[0])] for n in range(self.x_test.shape[0])]
 
         # Define the derivative of the likelihood with respect to beta_k.
         # Need to multiply by -1 because we will be minimizing.
         # The following has a dimension of [1 x k] where k = |W|
-        dl_by_dWk = lambda W, k: (k > 0) * self.sfRegStep(W, k, i, similarityMatrix) - \
-                                 np.sum([data.y_train[i] * data.x_train[i, k] * \
-                                            sigmoid(-data.y_train[i] * \
-                                                    np.dot(W, data.x_train[i, :])) \
-                                    for i in range(data.n)])
+        dl_by_dWk = lambda W, k: (k > 0) * self.sfRegStep(W, k, similarityMatrix, alpha)
 
 
 
         # The full gradient is just an array of componentwise derivatives
         gradient = lambda W: np.array([dl_by_dWk(W, k) \
-                                       for k in range(data.x_train.shape[1])])
+                                       for k in range(self.x_train.shape[1])])
 
         # The function to be minimized
         # Use the negative log likelihood for the objective function.
-        objectiveFunction = lambda W: -data.likelihood(betas=W, alpha=self.alpha)
+        objectiveFunction = lambda W: -self.likelihood_alt(similarityMatrix, betas=W, alpha=self.alpha)
 
         # Optimize
         self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
 
-    def sfRegStep(self, W, k, i, similarityMatrix):
-        value = 0
-        for j in range(self.x_train.shape[1] + self.x_test.shape[1]):
-            value = self.x_train[k,:]*W*data.x_train[:,:] + self.x_test[k,:]*W*data.x_test[:,:] -\
-                    self.x_test[k,:]*W*data.x_train[:,:] - self.x_train[k,:]*W*data.x_test[:,:]
-        return value * similarityMatrix
+    def sfRegStep(self, W, k, similarityMatrix, alpha):
+        # for j in range(self.x_train.shape[0] + self.x_test.shape[0]):
+        #     value = self.x_train[j,k]* np.dot(W,data.x_train[j,:]) + self.x_test[k,:]*W*data.x_test[:,:] -\
+        #             self.x_test[k,:]*W*data.x_train[:,:] - self.x_train[k,:]*W*data.x_test[:,:]
+
+        x_total = np.concatenate((self.x_train, self.x_test), axis=0)
+        n = self.x_train.shape[0]
+        m_n = x_total.shape[0]
+        dwk = 0
+        for i in range(n):
+            print('i={}, k={}'.format(i,k))
+            dwk +=  -1 * self.y_train[i]*self.x_train[i,k]*sigmoid(self.y_train[i] * np.dot(W, self.x_train[i,:]))
+
+        dL = 0
+        # import pdb; pdb.set_trace();
+        for i in range(n):
+            for j in range(m_n):
+                # TODO: replace 1 by I_ij
+                dL += alpha*1*x_total[i,k]*np.dot(W, x_total[i,:])\
+                + x_total[j, k]*np.dot(W, x_total[j,:])
+                - x_total[j,k]*np.dot(W, x_total[i,:]) - x_total[i,k]*np.dot(W, x_total[j,:])
+
+        return dL+dwk
 
     def predict(self, x):
-        return sigmoid(np.dot(self.betas, x))
+        return sigmoid(np.dot(W, x))
 
     def training_reconstruction(self, data):
         p_y1 = np.zeros(data.n)
@@ -167,7 +218,7 @@ class Model(object):
         for i in range(data.n):
             p_y1[i] = self.predict(data.x_test[i,:])
         return p_y1
-        
+
     def plot_training_reconstruction(self, data):
         plot(np.arange(data.n), .5 + .5 * data.y_train, 'bo')
         plot(np.arange(data.n), self.training_reconstruction(data), 'rx')
@@ -195,20 +246,17 @@ if __name__ == "__main__":
     test_source = source_data[151:,:]
     test_source_labels = source_data[151:,0]
 
-    data = TsvData(train_source, test_source)
-    
-
-    lr = Model(data.d)
+    lr = Model(train_source, test_source, train_source[:,1:].shape[1])
 
     # Run for a variety of regularization strengths
     alphas = [0, .001, .01, .1]
     for j, a in enumerate(alphas):
         print "Initial likelihood:"
-        print data.likelihood(lr.betas)
-        
+        #print lr.likelihood_alt(lr.betas)
+
         # Train the model
-        lr.train(data, alpha=a)
-        
+        lr.train_alt(alpha=a)
+
         # Display execution info
         print "Final betas:"
         print lr.betas
@@ -217,14 +265,14 @@ if __name__ == "__main__":
 
         predictions = lr.predict(test_source[:,1:].transpose())
         print predictions
-        
+
         # Plot the results
         #subplot(len(alphas), 2, 2*j + 1)
         #lr.plot_training_reconstruction(data)
         #ylabel("Alpha=%s" % a)
         #if j == 0:
         #   title("Training set reconstructions")
-        
+
         #subplot(len(alphas), 2, 2*j + 2)
         #lr.plot_test_predictions(data)
         #if j == 0:
