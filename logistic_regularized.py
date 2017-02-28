@@ -14,64 +14,11 @@ def sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
 
 
-class Data(object):
-    """ Abstract base class for data objects. """
-
-    def likelihood(self, betas, alpha=0):
-        """ Likelihood of the data under the given settings of parameters. """
-
-        # Data likelihood
-        l = 0
-        for i in range(self.n):
-            l += log(sigmoid(self.y_train[i] * \
-                             np.dot(betas, self.x_train[i,:])))
-
-        # Prior likelihood
-        # More like regularization
-        for k in range(1, self.x_train.shape[1]):
-            l -= (alpha / 2.0) * betas[k]**2
-
-        return l
-
-    def likelihood_alt(self, betas, alpha=0):
-        """ Likelihood of the data under the given settings of parameters. """
-
-        # Data likelihood
-        l = 0
-        m = 1
-        # similarityMatrix = [[1 for i in range(self.x_train.shape[0])] for j in range(m)]
-        for i in range(self.n):
-            l += log(sigmoid(self.y_train[i] * \
-                             np.dot(betas, self.x_train[i,:])))
-
-        # ToDo: Add the training and auxiliary data, without the labels.
-        x_total = np.concatenate((self.x_train, self.x_test), axis=0)
-
-        # Prior likelihood
-        # More like regularization
-
-        regularizedValue = np.sum(np.sum(1*(np.dot(betas, x_total[i]) - np.dot(betas, x_total[j])**2
-        for j in range(x_total.shape[0])))
-         for i in range(x_train.shape[0]))
-
-        l -= (alpha / 2.0) * regularizedValue
-
-        return l
 
 
 
-class TsvData(Data):
-
-    def __init__(self, train_data, test_data):
 
 
-        self.x_train = np.array(train_data[:,1:])
-        self.x_test = np.array(test_data[:,1:])
-        self.y_train = np.array(train_data[:,0])
-        self.y_test = np.array(test_data[:,0])
-
-        self.n = self.y_train.shape[0]
-        self.d = self.x_train.shape[1]
 
 
 class Model(object):
@@ -91,7 +38,7 @@ class Model(object):
         self.n = self.y_train.shape[0]
         self.d = self.x_train.shape[1]
 
-    def train(self, data, alpha=0):
+    def train(self, alpha=0):
         """ Define the gradient and hand it off to a scipy gradient-based
         optimizer. """
 
@@ -102,24 +49,40 @@ class Model(object):
         # Need to multiply by -1 because we will be minimizing.
         # The following has a dimension of [1 x k] where k = |W|
         dl_by_dWk = lambda B, k: (k > 0) * self.alpha * B[k] - np.sum([ \
-                                    data.y_train[i] * data.x_train[i, k] * \
-                                    sigmoid(-data.y_train[i] *\
-                                            np.dot(B, data.x_train[i,:])) \
-                                    for i in range(data.n)])
+                                    self.y_train[i] * self.x_train[i, k] * \
+                                    sigmoid(-self.y_train[i] *\
+                                            np.dot(B, self.x_train[i,:])) \
+                                    for i in range(self.n)])
 
 
 
         # The full gradient is just an array of componentwise derivatives
         gradient = lambda B: np.array([dl_by_dWk(B, k) \
-                                 for k in range(data.x_train.shape[1])])
+                                 for k in range(self.x_train.shape[1])])
 
         # The function to be minimized
         # Use the negative log likelihood for the objective function.
-        objectiveFunction = lambda B: -data.likelihood(betas=B, alpha=self.alpha)
+        objectiveFunction = lambda B: -self.likelihood(betas=B, alpha=self.alpha)
 
         # Optimize
+        print('Optimizing for alpha = {}'.format(alpha))
         self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
 
+    def likelihood(self, betas, alpha=0):
+        """ Likelihood of the data under the given settings of parameters. """
+
+        # Data likelihood
+        l = 0
+        for i in range(self.n):
+            l += log(sigmoid(self.y_train[i] * \
+                             np.dot(betas, self.x_train[i,:])))
+
+        # Prior likelihood
+        # More like regularization
+        for k in range(1, self.x_train.shape[1]):
+            l -= (alpha / 2.0) * betas[k]**2
+
+        return l
 
     def likelihood_alt(self, similarityMatrix, betas, alpha=0):
         """ Likelihood of the data under the given settings of parameters. """
@@ -178,6 +141,7 @@ class Model(object):
         objectiveFunction = lambda W: -self.likelihood_alt(similarityMatrix, betas=W, alpha=self.alpha)
 
         # Optimize
+        print('Optimizing for alpha = {}'.format(alpha))
         self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
 
     def sfRegStep(self, W, k, similarityMatrix, alpha):
@@ -190,7 +154,7 @@ class Model(object):
         m_n = x_total.shape[0]
         dwk = 0
         for i in range(n):
-            print('i={}, k={}'.format(i,k))
+            #print('i={}, k={}'.format(i,k))
             dwk +=  -1 * self.y_train[i]*self.x_train[i,k]*sigmoid(self.y_train[i] * np.dot(W, self.x_train[i,:]))
 
         dL = 0
@@ -205,7 +169,7 @@ class Model(object):
         return dL+dwk
 
     def predict(self, x):
-        return sigmoid(np.dot(W, x))
+        return sigmoid(np.dot(self.betas, x))
 
     def training_reconstruction(self, data):
         p_y1 = np.zeros(data.n)
@@ -252,19 +216,18 @@ if __name__ == "__main__":
     alphas = [0, .001, .01, .1]
     for j, a in enumerate(alphas):
         print "Initial likelihood:"
-        #print lr.likelihood_alt(lr.betas)
+        print lr.betas
 
         # Train the model
-        lr.train_alt(alpha=a)
+        lr.train(alpha=a)
 
         # Display execution info
         print "Final betas:"
         print lr.betas
         print "Final likelihood:"
-        print data.likelihood(lr.betas)
+        print lr.betas
 
-        predictions = lr.predict(test_source[:,1:].transpose())
-        print predictions
+
 
         # Plot the results
         #subplot(len(alphas), 2, 2*j + 1)
@@ -279,3 +242,6 @@ if __name__ == "__main__":
         #   title("Test set predictions")
 
     #show()
+    predictions = lr.predict(test_source[:,1:].transpose())
+    print "Final Predictions:"
+    print predictions
