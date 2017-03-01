@@ -8,6 +8,7 @@ Based on:
 
 from scipy.optimize.optimize import fmin_bfgs
 from sklearn.metrics import f1_score
+from enum import Enum
 import numpy as np
 
 
@@ -16,21 +17,22 @@ def sigmoid(x):
 
 
 
-
-
-
-
-
+class Classifier(Enum):
+    LR = 1
+    LR_TRANSFER = 2
 
 class Model(object):
     """ A simple logistic regression model with L2 regularization (zero-mean
     Gaussian priors on parameters). """
 
-    def __init__(self, train_data, test_data, d):
+    def __init__(self, train_data, test_data, d, w=0):
         """ Create model for input data consisting of d dimensions. """
 
         # Initialize parameters to zero, for lack of a better choice.
-        self.betas = np.zeros(d)
+        if w is not 0:
+            self.betas = w
+        else:
+            self.betas = np.zeros(d)
         self.x_train = np.array(train_data[:,1:])
         self.x_test = np.array(test_data[:,1:])
         self.y_train = np.array(train_data[:,0])
@@ -197,58 +199,64 @@ class Model(object):
         ylim([-.1, 1.1])
 
 
-if __name__ == "__main__":
-    from pylab import *
-    import sys
-
-    source_file = 'source.txt'
-
-    source_data = genfromtxt(source_file, delimiter=',')
-    validation_data = genfromtxt(source_file, delimiter=',')[55:75,:]
-    np.random.shuffle(source_data)
-
-     # Define training and test splits
-    train_source = source_data[:10,:]
-    train_source_labels = source_data[:10,0]
-
-    test_source = source_data[30:40,:]
-    test_source_labels = source_data[30:40,0]
-
-    lr = Model(train_source, test_source, train_source[:,1:].shape[1])
-
+def run_experiment(train, test, validation, w=0, classifier=Classifier.LR):
+    lr = Model(train, test, train[:, 1:].shape[1],w)
     # Run for a variety of regularization strengths
-    #alphas = [0.01, .11, 1.1, 11.1]
+    # alphas = [0.01, .11, 1.1, 11.1]
     alphas = [0, .001, .01, .1]
     for j, a in enumerate(alphas):
         print "Initial likelihood:"
         print lr.betas
 
         # Train the model
-        lr.train(alpha=a)
+        if classifier is Classifier.LR:
+            lr.train(alpha=a)
+        else:
+            lr.train_alt(alpha=a)
 
         # Display execution info
         print "Final betas:"
         print lr.betas
         print "Final likelihood:"
         print lr.betas
-
-
-
-        # Plot the results
-        #subplot(len(alphas), 2, 2*j + 1)
-        #lr.plot_training_reconstruction(data)
-        #ylabel("Alpha=%s" % a)
-        #if j == 0:
-        #   title("Training set reconstructions")
-
-        #subplot(len(alphas), 2, 2*j + 2)
-        #lr.plot_test_predictions(data)
-        #if j == 0:
-        #   title("Test set predictions")
-
-    #show()
-    predictions = lr.predict(validation_data[:,1:].transpose())
-    predictionLabels = map (lambda prediction : 1 if prediction > 0.5 else 0, predictions)
+    predictions = lr.predict(validation[:, 1:].transpose())
+    predictionLabels = map(lambda prediction: 1 if prediction > 0.5 else 0, predictions)
     print "Final Predictions:"
     print predictionLabels
-    print f1_score(validation_data[:,0], predictionLabels, average='binary')
+    print f1_score(validation[:, 0], predictionLabels, average='binary')
+    return lr.betas
+
+
+if __name__ == "__main__":
+    from pylab import *
+    import sys
+
+    source_training_file = 'source.txt'
+    source_auxiliary_file = 'source_auxiliary.txt'
+    source_validation_file = 'source_validation.txt'
+
+    source_training_data = genfromtxt(source_training_file, delimiter=',')
+    source_auxiliary_data = genfromtxt(source_auxiliary_file, delimiter=',')
+    source_validation_data = genfromtxt(source_validation_file, delimiter=',')
+    #np.random.shuffle(source_training_data)
+
+     # Define training, auxiliary and validation filters
+    source_train = source_training_data[:, :]
+    source_auxiliary = source_auxiliary_data
+
+
+    target_training_file = 'target.txt'
+    target_auxiliary_file = 'target_auxiliary.txt'
+    target_validation_file = 'target_validation.txt'
+
+    target_training_data = genfromtxt(target_training_file, delimiter=',')
+    target_auxiliary_data = genfromtxt(target_auxiliary_file, delimiter=',')
+    target_validation_data = genfromtxt(target_validation_file, delimiter=',')
+    # np.random.shuffle(target_training_data)
+
+    # Define training, auxiliary and validation filters
+    target_train = target_training_data[50:60, :]
+    target_auxiliary = target_auxiliary_data[1:14,:]
+
+    w = run_experiment(source_train, source_auxiliary, source_validation_data)
+    run_experiment(target_train, target_auxiliary, target_validation_data, w, classifier=Classifier.LR)
