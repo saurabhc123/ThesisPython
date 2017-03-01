@@ -83,11 +83,11 @@ class Model(object):
         for i in range(self.x_train.shape[0]):
             for j in range(x_total.shape[0]):
                 # TODO: change 1 to I_ij
-                reg += 1* \
+                reg -= 1* \
                 (np.dot(betas, x_total[i]) - \
                  np.dot(betas, x_total[j]))**2
 
-        return (alpha / 2.0) * reg
+        return l + (alpha / 2.0) * reg
 
     def train(self, alpha=0):
         """ Define the gradient and hand it off to a scipy gradient-based
@@ -159,7 +159,7 @@ class Model(object):
         #print('sfRegStep - First Summation for k={}'.format(k))
         for i in range(n):
             #print('i={}, k={}'.format(i,k))
-            dwk +=  -1 * self.y_train[i]*self.x_train[i,k]*sigmoid(self.y_train[i] * np.dot(W, self.x_train[i,:]))
+            dwk +=  -1 * self.y_train[i]*self.x_train[i,k]*sigmoid(-self.y_train[i] * np.dot(W, self.x_train[i,:]))
 
         #print('sfRegStep - Regularization for k={}'.format(k))
         dL = 0
@@ -167,7 +167,7 @@ class Model(object):
         for i in range(n):
             for j in range(m_n):
                 # TODO: replace 1 by I_ij
-                dL += alpha*1*x_total[i,k]*np.dot(W, x_total[i,:])\
+                dL += alpha*1*x_total[i,k]*np.dot(W, x_total[i,:])
                 + x_total[j, k]*np.dot(W, x_total[j,:])
                 - x_total[j,k]*np.dot(W, x_total[i,:]) - x_total[i,k]*np.dot(W, x_total[j,:])
 
@@ -202,7 +202,7 @@ class Model(object):
 def run_experiment(train, test, validation, w=0, classifier=Classifier.LR):
     lr = Model(train, test, train[:, 1:].shape[1],w)
     # Run for a variety of regularization strengths
-    # alphas = [0.01, .11, 1.1, 11.1]
+    #alphas = [0.01, .11, 1.1, 11.1]
     alphas = [0, .001, .01, .1]
     for j, a in enumerate(alphas):
         print "Initial likelihood:"
@@ -256,7 +256,8 @@ if __name__ == "__main__":
 
     # Define training, auxiliary and validation filters
     target_train = target_training_data[50:60, :]
-    target_auxiliary = target_auxiliary_data[1:14,:]
+    target_auxiliary = target_auxiliary_data[1:21,:]
 
-    w = run_experiment(source_train, source_auxiliary, source_validation_data)
-    run_experiment(target_train, target_auxiliary, target_validation_data, w, classifier=Classifier.LR)
+    #w = run_experiment(source_train[40:50,:], source_auxiliary, source_validation_data)
+    w = run_experiment(source_train[:,:], source_auxiliary, source_validation_data,classifier=Classifier.LR)
+    run_experiment(target_train, target_auxiliary, target_validation_data, w, classifier=Classifier.LR_TRANSFER)
