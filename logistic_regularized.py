@@ -26,11 +26,14 @@ class Model(object):
     """ A simple logistic regression model with L2 regularization (zero-mean
     Gaussian priors on parameters). """
 
-    def __init__(self, train_data, test_data, d):
+    def __init__(self, train_data, test_data, d, w=0):
         """ Create model for input data consisting of d dimensions. """
 
         # Initialize parameters to zero, for lack of a better choice.
-        self.betas = np.zeros(d)
+        if w is not 0:
+            self.betas = w
+        else:
+            self.betas = np.zeros(d)
         self.x_train = np.array(train_data[:,1:])
         self.x_test = np.array(test_data[:,1:])
         self.y_train = np.array(train_data[:,0])
@@ -197,27 +200,10 @@ class Model(object):
         ylim([-.1, 1.1])
 
 
-if __name__ == "__main__":
-    from pylab import *
-    import sys
-
-    source_file = 'source.txt'
-
-    source_data = genfromtxt(source_file, delimiter=',')
-    validation_data = genfromtxt(source_file, delimiter=',')[55:75,:]
-    np.random.shuffle(source_data)
-
-     # Define training and test splits
-    train_source = source_data[:10,:]
-    train_source_labels = source_data[:10,0]
-
-    test_source = source_data[30:40,:]
-    test_source_labels = source_data[30:40,0]
-
-    lr = Model(train_source, test_source, train_source[:,1:].shape[1])
-
+def run_experiment(train, test, validation, w=0):
+    lr = Model(train, test, train[:, 1:].shape[1],w)
     # Run for a variety of regularization strengths
-    #alphas = [0.01, .11, 1.1, 11.1]
+    # alphas = [0.01, .11, 1.1, 11.1]
     alphas = [0, .001, .01, .1]
     for j, a in enumerate(alphas):
         print "Initial likelihood:"
@@ -231,24 +217,30 @@ if __name__ == "__main__":
         print lr.betas
         print "Final likelihood:"
         print lr.betas
-
-
-
-        # Plot the results
-        #subplot(len(alphas), 2, 2*j + 1)
-        #lr.plot_training_reconstruction(data)
-        #ylabel("Alpha=%s" % a)
-        #if j == 0:
-        #   title("Training set reconstructions")
-
-        #subplot(len(alphas), 2, 2*j + 2)
-        #lr.plot_test_predictions(data)
-        #if j == 0:
-        #   title("Test set predictions")
-
-    #show()
-    predictions = lr.predict(validation_data[:,1:].transpose())
-    predictionLabels = map (lambda prediction : 1 if prediction > 0.5 else 0, predictions)
+    predictions = lr.predict(validation[:, 1:].transpose())
+    predictionLabels = map(lambda prediction: 1 if prediction > 0.5 else 0, predictions)
     print "Final Predictions:"
     print predictionLabels
-    print f1_score(validation_data[:,0], predictionLabels, average='binary')
+    print f1_score(validation[:, 0], predictionLabels, average='binary')
+    return lr.betas
+
+
+if __name__ == "__main__":
+    from pylab import *
+    import sys
+
+    source_training = 'source.txt'
+    source_auxiliary = 'source_auxiliary.txt'
+    source_validation = 'source_validation.txt'
+
+    source_data = genfromtxt(source_training, delimiter=',')
+    auxiliary_data = genfromtxt(source_auxiliary, delimiter=',')
+    validation_data = genfromtxt(source_validation, delimiter=',')
+    #np.random.shuffle(source_data)
+
+     # Define training, auxiliary and validation splits
+    train_source = source_data[25:45,:]
+    auxiliary_source = auxiliary_data
+
+    w = run_experiment(train_source, auxiliary_source, validation_data)
+    #run_experiment(train_source, test_source, validation_data, w)
