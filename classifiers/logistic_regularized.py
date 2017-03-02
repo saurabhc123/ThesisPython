@@ -9,6 +9,7 @@ Based on:
 from scipy.optimize.optimize import fmin_bfgs
 from sklearn.metrics import f1_score
 from enum import Enum
+import similarities.similarity_calculator as sim
 import numpy as np
 
 
@@ -66,7 +67,7 @@ class Model(object):
         l = 0
         m = 1
         # import pdb; pdb.set_trace();
-        similarityMatrix = [[1 for i in range(self.x_train.shape[0])] for j in range(m)]
+        #similarityMatrix = [[1 for i in range(self.x_train.shape[0])] for j in range(m)]
         for i in range(self.n):
             l += log(sigmoid(self.y_train[i] * \
                              np.dot(betas, self.x_train[i,:])))
@@ -83,7 +84,7 @@ class Model(object):
         for i in range(self.x_train.shape[0]):
             for j in range(x_total.shape[0]):
                 # TODO: change 1 to I_ij
-                reg -= 1* \
+                reg -= similarityMatrix[i,j] * \
                 (np.dot(betas, x_total[i]) - \
                  np.dot(betas, x_total[j]))**2
 
@@ -126,12 +127,13 @@ class Model(object):
         # Set alpha so it can be referred to later if needed
         self.alpha = alpha
 
-        similarityMatrix = [[1 for m in range(self.x_train.shape[0])] for n in range(self.x_test.shape[0])]
-
+        x_total = np.concatenate((self.x_train, self.x_test), axis=0)
+        similarityMatrix = np.ones((self.x_train.shape[0],x_total.shape[0]))
+        #similarityMatrix = sim.get_similarities_alt(x_total, self.x_train)
         # Define the derivative of the likelihood with respect to beta_k.
         # Need to multiply by -1 because we will be minimizing.
         # The following has a dimension of [1 x k] where k = |W|
-        dl_by_dWk = lambda W, k: (k > 0) * self.sfRegStep(W, k, similarityMatrix, alpha)
+        dl_by_dWk = lambda W, k: (k > 0) * self.sfRegStep(W, k, similarityMatrix, alpha, x_total)
 
 
 
@@ -147,12 +149,12 @@ class Model(object):
         print('Optimizing for alpha = {}'.format(alpha))
         self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
 
-    def sfRegStep(self, W, k, similarityMatrix, alpha):
+    def sfRegStep(self, W, k, similarityMatrix, alpha, x_total):
         # for j in range(self.x_train.shape[0] + self.x_test.shape[0]):
         #     value = self.x_train[j,k]* np.dot(W,data.x_train[j,:]) + self.x_test[k,:]*W*data.x_test[:,:] -\
         #             self.x_test[k,:]*W*data.x_train[:,:] - self.x_train[k,:]*W*data.x_test[:,:]
 
-        x_total = np.concatenate((self.x_train, self.x_test), axis=0)
+
         n = self.x_train.shape[0]
         m_n = x_total.shape[0]
         dwk = 0
@@ -167,7 +169,7 @@ class Model(object):
         for i in range(n):
             for j in range(m_n):
                 # TODO: replace 1 by I_ij
-                dL += alpha*1*x_total[i,k]*np.dot(W, x_total[i,:])
+                dL += alpha* similarityMatrix[i,j] *x_total[i,k]*np.dot(W, x_total[i,:])
                 + x_total[j, k]*np.dot(W, x_total[j,:])
                 - x_total[j,k]*np.dot(W, x_total[i,:]) - x_total[i,k]*np.dot(W, x_total[j,:])
 
@@ -231,9 +233,10 @@ if __name__ == "__main__":
     from pylab import *
     import sys
 
-    source_training_file = 'source.txt'
-    source_auxiliary_file = 'source_auxiliary.txt'
-    source_validation_file = 'source_validation.txt'
+
+    source_training_file = 'data/source.txt'
+    source_auxiliary_file = 'data/source_auxiliary.txt'
+    source_validation_file = 'data/source_validation.txt'
 
     source_training_data = genfromtxt(source_training_file, delimiter=',')
     source_auxiliary_data = genfromtxt(source_auxiliary_file, delimiter=',')
@@ -245,9 +248,9 @@ if __name__ == "__main__":
     source_auxiliary = source_auxiliary_data
 
 
-    target_training_file = 'target.txt'
-    target_auxiliary_file = 'target_auxiliary.txt'
-    target_validation_file = 'target_validation.txt'
+    target_training_file = 'data/target.txt'
+    target_auxiliary_file = 'data/target_auxiliary.txt'
+    target_validation_file = 'data/target_validation.txt'
 
     target_training_data = genfromtxt(target_training_file, delimiter=',')
     target_auxiliary_data = genfromtxt(target_auxiliary_file, delimiter=',')

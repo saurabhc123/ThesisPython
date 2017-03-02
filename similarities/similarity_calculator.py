@@ -1,12 +1,13 @@
 from gensim import corpora, models, similarities
 import numpy as np
 from scipy import spatial
+from word2vec.word2vec import word2vec
 
 
 model = None
 def init_sim_model():
     global model
-    model = models.KeyedVectors.load_word2vec_format('../GoogleNews-vectors-negative300.bin', binary=True)
+    model = word2vec.get_model()
 
 
 def avg_feature_vector(words, model, num_features, index2word_set):
@@ -43,6 +44,11 @@ def get_similarities(actual_tweets, auxiliary_tweets):
     all_tweets = train_tw + aux_tw
     actual_vectors = [avg_feature_vector(t,model,300,model.index2word).tolist() for t in train_tw]
     aux_vectors = [avg_feature_vector(t,model,300,model.index2word).tolist() for t in aux_tw]
+    to_return = [[get_cosine(act,aux) for act in actual_vectors] for aux in aux_vectors]
+    to_return_matrix = np.matrix(to_return)
+    return to_return_matrix
+
+def get_similarities_alt(actual_vectors, aux_vectors):
     to_return = [[get_cosine(act,aux) for act in actual_vectors] for aux in aux_vectors]
     to_return_matrix = np.matrix(to_return)
     return to_return_matrix
