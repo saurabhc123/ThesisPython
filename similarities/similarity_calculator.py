@@ -2,6 +2,7 @@ from gensim import corpora, models, similarities
 import numpy as np
 from scipy import spatial
 from word2vec.word2vec import word2vec
+import math
 
 
 model = None
@@ -27,7 +28,7 @@ def avg_feature_vector(words, model, num_features, index2word_set):
     return featureVec
 
 def get_cosine(v1,v2):
-    x = spatial.distance.cosine(v1,v2)
+    x = np.dot(v1,v2)/(np.linalg.norm(v1)*np.linalg.norm(v2))
     if np.isnan(x):
         x = 0
     return x

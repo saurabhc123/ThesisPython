@@ -6,11 +6,13 @@ Based on:
 - http://people.csail.mit.edu/jrennie/writing/lr.pdf
 """
 
-from scipy.optimize.optimize import fmin_bfgs
-from sklearn.metrics import f1_score
 from enum import Enum
-import similarities.similarity_calculator as sim
-import numpy as np
+from scipy.optimize.optimize import fmin_bfgs, fmin_cg
+from scipy.optimize import minimize
+from sklearn import linear_model
+from sklearn.metrics import f1_score
+from similarities import similarity_calculator
+
 
 
 def sigmoid(x):
@@ -119,6 +121,7 @@ class Model(object):
         # Optimize
         print('Optimizing for alpha = {}'.format(alpha))
         self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
+        #self.betas = fmin_cg(objectiveFunction, self.betas, fprime=gradient, maxiter=10)
 
     def train_alt(self, alpha=0):
         """ Define the gradient and hand it off to a scipy gradient-based
@@ -128,8 +131,8 @@ class Model(object):
         self.alpha = alpha
 
         x_total = np.concatenate((self.x_train, self.x_test), axis=0)
-        similarityMatrix = np.ones((self.x_train.shape[0],x_total.shape[0]))
-        #similarityMatrix = sim.get_similarities_alt(x_total, self.x_train)
+        #similarityMatrix = np.ones((self.x_train.shape[0],x_total.shape[0]))
+        similarityMatrix = similarity_calculator.get_similarities_alt(x_total, self.x_train)
         # Define the derivative of the likelihood with respect to beta_k.
         # Need to multiply by -1 because we will be minimizing.
         # The following has a dimension of [1 x k] where k = |W|
@@ -139,7 +142,7 @@ class Model(object):
 
         # The full gradient is just an array of componentwise derivatives
         gradient = lambda W: np.array([dl_by_dWk(W, k) \
-                                       for k in range(self.x_train.shape[1])])
+                                       for k in range(self.x_train.shape[1])]).transpose()
 
         # The function to be minimized
         # Use the negative log likelihood for the objective function.
@@ -147,7 +150,8 @@ class Model(object):
 
         # Optimize
         print('Optimizing for alpha = {}'.format(alpha))
-        self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
+        #self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
+        self.betas = fmin_cg(objectiveFunction, self.betas, fprime=gradient, maxiter=10)
 
     def sfRegStep(self, W, k, similarityMatrix, alpha, x_total):
         # for j in range(self.x_train.shape[0] + self.x_test.shape[0]):
@@ -231,12 +235,14 @@ def run_experiment(train, test, validation, w=0, classifier=Classifier.LR):
 
 if __name__ == "__main__":
     from pylab import *
-    import sys
-
 
     source_training_file = 'data/source.txt'
     source_auxiliary_file = 'data/source_auxiliary.txt'
     source_validation_file = 'data/source_validation.txt'
+
+    target_training_file = 'data/target.txt'
+    target_auxiliary_file = 'data/target_auxiliary.txt'
+    target_validation_file = 'data/target_validation.txt'
 
     source_training_data = genfromtxt(source_training_file, delimiter=',')
     source_auxiliary_data = genfromtxt(source_auxiliary_file, delimiter=',')
@@ -248,9 +254,7 @@ if __name__ == "__main__":
     source_auxiliary = source_auxiliary_data
 
 
-    target_training_file = 'data/target.txt'
-    target_auxiliary_file = 'data/target_auxiliary.txt'
-    target_validation_file = 'data/target_validation.txt'
+
 
     target_training_data = genfromtxt(target_training_file, delimiter=',')
     target_auxiliary_data = genfromtxt(target_auxiliary_file, delimiter=',')
@@ -258,9 +262,12 @@ if __name__ == "__main__":
     # np.random.shuffle(target_training_data)
 
     # Define training, auxiliary and validation filters
-    target_train = target_training_data[50:60, :]
+    target_train = target_training_data[34:54, :]
     target_auxiliary = target_auxiliary_data[1:21,:]
 
+    lr1 = linear_model.LogisticRegression(C=1e5)
+    lr1.fit(source_training_data[:,1:], source_training_data[:,0])
+    w = lr1.coef_
     #w = run_experiment(source_train[40:50,:], source_auxiliary, source_validation_data)
-    w = run_experiment(source_train[:,:], source_auxiliary, source_validation_data,classifier=Classifier.LR)
+    #w = run_experiment(source_train[:,:], source_auxiliary, source_validation_data,classifier=Classifier.LR)
     run_experiment(target_train, target_auxiliary, target_validation_data, w, classifier=Classifier.LR_TRANSFER)
