@@ -6,10 +6,13 @@ Based on:
 - http://people.csail.mit.edu/jrennie/writing/lr.pdf
 """
 
-from scipy.optimize.optimize import fmin_bfgs
-from sklearn.metrics import f1_score
 from enum import Enum
-import numpy as np
+from scipy.optimize.optimize import fmin_bfgs, fmin_cg
+from scipy.optimize import minimize
+from sklearn import linear_model
+from sklearn.metrics import f1_score
+from similarities import similarity_calculator
+
 
 
 def sigmoid(x):
@@ -66,7 +69,7 @@ class Model(object):
         l = 0
         m = 1
         # import pdb; pdb.set_trace();
-        similarityMatrix = [[1 for i in range(self.x_train.shape[0])] for j in range(m)]
+        #similarityMatrix = [[1 for i in range(self.x_train.shape[0])] for j in range(m)]
         for i in range(self.n):
             l += log(sigmoid(self.y_train[i] * \
                              np.dot(betas, self.x_train[i,:])))
@@ -83,7 +86,7 @@ class Model(object):
         for i in range(self.x_train.shape[0]):
             for j in range(x_total.shape[0]):
                 # TODO: change 1 to I_ij
-                reg -= 1* \
+                reg -= similarityMatrix[i,j] * \
                 (np.dot(betas, x_total[i]) - \
                  np.dot(betas, x_total[j]))**2
 
@@ -118,6 +121,7 @@ class Model(object):
         # Optimize
         print('Optimizing for alpha = {}'.format(alpha))
         self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
+        #self.betas = fmin_cg(objectiveFunction, self.betas, fprime=gradient, maxiter=10)
 
     def train_alt(self, alpha=0):
         """ Define the gradient and hand it off to a scipy gradient-based
@@ -126,18 +130,19 @@ class Model(object):
         # Set alpha so it can be referred to later if needed
         self.alpha = alpha
 
-        similarityMatrix = [[1 for m in range(self.x_train.shape[0])] for n in range(self.x_test.shape[0])]
-
+        x_total = np.concatenate((self.x_train, self.x_test), axis=0)
+        #similarityMatrix = np.ones((self.x_train.shape[0],x_total.shape[0]))
+        similarityMatrix = similarity_calculator.get_similarities_alt(x_total, self.x_train)
         # Define the derivative of the likelihood with respect to beta_k.
         # Need to multiply by -1 because we will be minimizing.
         # The following has a dimension of [1 x k] where k = |W|
-        dl_by_dWk = lambda W, k: (k > 0) * self.sfRegStep(W, k, similarityMatrix, alpha)
+        dl_by_dWk = lambda W, k: (k > 0) * self.sfRegStep(W, k, similarityMatrix, alpha, x_total)
 
 
 
         # The full gradient is just an array of componentwise derivatives
         gradient = lambda W: np.array([dl_by_dWk(W, k) \
-                                       for k in range(self.x_train.shape[1])])
+                                       for k in range(self.x_train.shape[1])]).transpose()
 
         # The function to be minimized
         # Use the negative log likelihood for the objective function.
@@ -145,14 +150,15 @@ class Model(object):
 
         # Optimize
         print('Optimizing for alpha = {}'.format(alpha))
-        self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
+        #self.betas = fmin_bfgs(objectiveFunction, self.betas, fprime=gradient)
+        self.betas = fmin_cg(objectiveFunction, self.betas, fprime=gradient, maxiter=10)
 
-    def sfRegStep(self, W, k, similarityMatrix, alpha):
+    def sfRegStep(self, W, k, similarityMatrix, alpha, x_total):
         # for j in range(self.x_train.shape[0] + self.x_test.shape[0]):
         #     value = self.x_train[j,k]* np.dot(W,data.x_train[j,:]) + self.x_test[k,:]*W*data.x_test[:,:] -\
         #             self.x_test[k,:]*W*data.x_train[:,:] - self.x_train[k,:]*W*data.x_test[:,:]
 
-        x_total = np.concatenate((self.x_train, self.x_test), axis=0)
+
         n = self.x_train.shape[0]
         m_n = x_total.shape[0]
         dwk = 0
@@ -167,7 +173,7 @@ class Model(object):
         for i in range(n):
             for j in range(m_n):
                 # TODO: replace 1 by I_ij
-                dL += alpha*1*x_total[i,k]*np.dot(W, x_total[i,:])
+                dL += alpha* similarityMatrix[i,j] *x_total[i,k]*np.dot(W, x_total[i,:])
                 + x_total[j, k]*np.dot(W, x_total[j,:])
                 - x_total[j,k]*np.dot(W, x_total[i,:]) - x_total[i,k]*np.dot(W, x_total[j,:])
 
@@ -229,11 +235,14 @@ def run_experiment(train, test, validation, w=0, classifier=Classifier.LR):
 
 if __name__ == "__main__":
     from pylab import *
-    import sys
 
-    source_training_file = 'source.txt'
-    source_auxiliary_file = 'source_auxiliary.txt'
-    source_validation_file = 'source_validation.txt'
+    source_training_file = 'data/source.txt'
+    source_auxiliary_file = 'data/source_auxiliary.txt'
+    source_validation_file = 'data/source_validation.txt'
+
+    target_training_file = 'data/target.txt'
+    target_auxiliary_file = 'data/target_auxiliary.txt'
+    target_validation_file = 'data/target_validation.txt'
 
     source_training_data = genfromtxt(source_training_file, delimiter=',')
     source_auxiliary_data = genfromtxt(source_auxiliary_file, delimiter=',')
@@ -245,9 +254,7 @@ if __name__ == "__main__":
     source_auxiliary = source_auxiliary_data
 
 
-    target_training_file = 'target.txt'
-    target_auxiliary_file = 'target_auxiliary.txt'
-    target_validation_file = 'target_validation.txt'
+
 
     target_training_data = genfromtxt(target_training_file, delimiter=',')
     target_auxiliary_data = genfromtxt(target_auxiliary_file, delimiter=',')
@@ -255,9 +262,12 @@ if __name__ == "__main__":
     # np.random.shuffle(target_training_data)
 
     # Define training, auxiliary and validation filters
-    target_train = target_training_data[50:60, :]
+    target_train = target_training_data[34:54, :]
     target_auxiliary = target_auxiliary_data[1:21,:]
 
+    lr1 = linear_model.LogisticRegression(C=1e5)
+    lr1.fit(source_training_data[:,1:], source_training_data[:,0])
+    w = lr1.coef_
     #w = run_experiment(source_train[40:50,:], source_auxiliary, source_validation_data)
-    w = run_experiment(source_train[:,:], source_auxiliary, source_validation_data,classifier=Classifier.LR)
+    #w = run_experiment(source_train[:,:], source_auxiliary, source_validation_data,classifier=Classifier.LR)
     run_experiment(target_train, target_auxiliary, target_validation_data, w, classifier=Classifier.LR_TRANSFER)
