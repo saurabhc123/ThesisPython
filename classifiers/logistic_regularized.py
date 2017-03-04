@@ -52,13 +52,13 @@ class Model(object):
         # Data likelihood
         l = 0
         for i in range(self.n):
-            l += log(sigmoid(self.y_train[i] * \
-                             np.dot(betas, self.x_train[i,:])))
+             l += log(sigmoid(self.y_train[i] * \
+                              np.dot(betas, self.x_train[i,:])))
 
         # Prior likelihood
         # More like regularization
         for k in range(1, self.x_train.shape[1]):
-            l -= (alpha / 2.0) * betas[k]**2
+             l -= (alpha / 2.0) * betas[k]**2
 
         return l
 
@@ -102,7 +102,7 @@ class Model(object):
         # Define the derivative of the likelihood with respect to beta_k.
         # Need to multiply by -1 because we will be minimizing.
         # The following has a dimension of [1 x k] where k = |W|
-        dl_by_dWk = lambda B, k: (k > 0) * self.alpha * B[k] - np.sum([ \
+        dl_by_dWk = lambda B, k: (k > 0) * self.alpha * B[k]  - np.sum([ \
                                     self.y_train[i] * self.x_train[i, k] * \
                                     sigmoid(-self.y_train[i] *\
                                             np.dot(B, self.x_train[i,:])) \
@@ -222,9 +222,14 @@ def run_experiment(train, test, validation, w=0, classifier=Classifier.LR):
 
         # Display execution info
         print "Final betas:"
-        print lr.betas
+        #print lr.betas
         print "Final likelihood:"
-        print lr.betas
+        #print lr.betas
+        predictions = lr.predict(validation[:, 1:].transpose())
+        predictionLabels = map(lambda prediction: 1 if prediction > 0.5 else 0, predictions)
+        print "Final Predictions:"
+        print predictionLabels
+        print f1_score(validation[:, 0], predictionLabels, average='binary')
     predictions = lr.predict(validation[:, 1:].transpose())
     predictionLabels = map(lambda prediction: 1 if prediction > 0.5 else 0, predictions)
     print "Final Predictions:"
@@ -236,9 +241,9 @@ def run_experiment(train, test, validation, w=0, classifier=Classifier.LR):
 if __name__ == "__main__":
     from pylab import *
 
-    source_training_file = 'data/source.txt'
-    source_auxiliary_file = 'data/source_auxiliary.txt'
-    source_validation_file = 'data/source_validation.txt'
+    source_training_file = 'data/sandy_irene.txt'
+    source_auxiliary_file = 'data/sandy_irene_auxiliary.txt'
+    source_validation_file = 'data/sandy_irene_validation.txt'
 
     target_training_file = 'data/target.txt'
     target_auxiliary_file = 'data/target_auxiliary.txt'
@@ -262,12 +267,12 @@ if __name__ == "__main__":
     # np.random.shuffle(target_training_data)
 
     # Define training, auxiliary and validation filters
-    target_train = target_training_data[34:54, :]
-    target_auxiliary = target_auxiliary_data[1:21,:]
+    target_train = target_training_data[30:50, :]
+    target_auxiliary = target_auxiliary_data[14:21,:]
 
-    lr1 = linear_model.LogisticRegression(C=1e5)
-    lr1.fit(source_training_data[:,1:], source_training_data[:,0])
-    w = lr1.coef_
-    #w = run_experiment(source_train[40:50,:], source_auxiliary, source_validation_data)
-    #w = run_experiment(source_train[:,:], source_auxiliary, source_validation_data,classifier=Classifier.LR)
-    run_experiment(target_train, target_auxiliary, target_validation_data, w, classifier=Classifier.LR_TRANSFER)
+    #lr1 = linear_model.LogisticRegression(C=1e5)
+    #lr1.fit(source_training_data[:,1:], source_training_data[:,0])
+    #w = lr1.coef_
+    #w = run_experiment(source_train[:,:], source_auxiliary, source_validation_data)
+    w = run_experiment(source_train[43:44,:], source_auxiliary, source_validation_data,classifier=Classifier.LR)
+    run_experiment(source_train[40:41, :], source_auxiliary[:,:], source_validation_data, w, classifier=Classifier.LR_TRANSFER)
