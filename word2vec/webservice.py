@@ -1,6 +1,6 @@
 from flask import Flask, jsonify
 
-from word2vec.word2vec import word2vec, avg_feature_vector
+from word2vec import word2vec, avg_feature_vector
 
 app = Flask(__name__)
 model = word2vec.get_model()

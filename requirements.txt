@@ -2,3 +2,4 @@ gensim
 scipy
 numpy
 sklearn
+flask
