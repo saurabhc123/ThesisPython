@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from flask import request
 
 from word2vec import word2vec, avg_feature_vector
 
@@ -11,5 +12,12 @@ def get_vector(sentence):
     words = sentence.split()
     result = avg_feature_vector(words, model, 300, model.index2word).tolist()
     return jsonify({"sentence": sentence, "vector": result})
+
+
+@app.route("/similarity", methods=['GET'])
+def get_similarity():
+    document1 = request.args.get('document1').split()
+    document2 = request.args.get('document2').split()
+    return jsonify({"similarity": model.wmdistance(document1, document2)})
 
 app.run()
