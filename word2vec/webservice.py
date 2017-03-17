@@ -18,6 +18,6 @@ def get_vector(sentence):
 def get_similarity():
     document1 = request.args.get('document1').split()
     document2 = request.args.get('document2').split()
-    return jsonify({"wmd distance": model.wmdistance(document1, document2)})
+    return jsonify({"wmdDistance": model.wmdistance(document1, document2)})
 
 app.run()
