@@ -5,3 +5,4 @@ sklearn
 flask
 chainer
 h5py
+pyemd

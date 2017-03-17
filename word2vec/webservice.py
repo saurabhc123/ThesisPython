@@ -14,10 +14,10 @@ def get_vector(sentence):
     return jsonify({"sentence": sentence, "vector": result})
 
 
-@app.route("/similarity", methods=['GET'])
+@app.route("/distance", methods=['GET'])
 def get_similarity():
     document1 = request.args.get('document1').split()
     document2 = request.args.get('document2').split()
-    return jsonify({"similarity": model.wmdistance(document1, document2)})
+    return jsonify({"wmd distance": model.wmdistance(document1, document2)})
 
 app.run()
