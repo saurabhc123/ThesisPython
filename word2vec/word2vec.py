@@ -32,7 +32,7 @@ def write_to_file(lv,file):
 
 class word2vec:
     model = None
-
+    models = {}
     @staticmethod
     def get_model():
         if not word2vec.model:
@@ -41,6 +41,16 @@ class word2vec:
             word2vec.model = model
 
         return word2vec.model
+
+    @staticmethod
+    def get_model_from_file(name):
+        if not name in word2vec.models:
+            sentences = []
+            with open(name,"r") as f:
+                sentences = map(lambda x: x.split(), f.readlines())
+            file_model = gensim.models.Word2Vec(sentences=sentences, size=300, min_count=1)
+            word2vec.models[name] = file_model.wv
+        return word2vec.models[name]
 
 
 
