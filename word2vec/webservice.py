@@ -5,7 +5,7 @@ from word2vec import word2vec, avg_feature_vector
 
 app = Flask(__name__)
 model = word2vec.get_model()
-file_model = word2vec.get_model_from_file("data/egypt_auxiliary_data_clean.txt")
+file_model = word2vec.get_model_from_file("data/ebola_auxiliary_data_clean.txt")
 
 
 @app.route("/getvector/<sentence>")
