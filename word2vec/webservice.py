@@ -1,3 +1,4 @@
+import collections
 import csv
 import json
 
@@ -72,8 +73,9 @@ def wvsum_score(word):
 def cnn_score(word):
     global cnn_classifier
     if cnn_classifier is None:
-        cnn_classifier = CNNEmbeddedVecClassifier(model,3, classdict=eboladict)
-        cnn_classifier.train()
+        return jsonify("model not intialized")
+        #cnn_classifier = CNNEmbeddedVecClassifier(model,3, classdict=eboladict)
+        #cnn_classifier.train()
     score = {k:float(v) for k,v in cnn_classifier.score(word).iteritems()}
     #s = get_most_distinguishing_words()
     #f = cnn_train_and_predict("")
@@ -81,9 +83,10 @@ def cnn_score(word):
 
 
 class DataHelper():
-    def __init__(self, trainingFileName,validationFileName):
-        self.trainingFileName = trainingFileName
-        self.validationFileName = validationFileName
+    def __init__(self, trainingFolder,validationFileName):
+        self.baseFolderName = "/Users/saur6410/Google Drive/VT/Thesis/Source/ThesisPoC/data/python/"
+        self.trainingFileName = self.baseFolderName + trainingFolder + "/" + "part-00000"
+        self.validationFileName = self.baseFolderName + validationFileName
 
     def getValidationData(self):
         reader = csv.reader(open(self.validationFileName, "rb"), delimiter=",")
@@ -93,27 +96,54 @@ class DataHelper():
     def getTrainingData(self):
         reader = csv.reader(open(self.trainingFileName, "rb"), delimiter=",")
         training_data = list(reader)
-        return training_data
+        trainingDict = collections.defaultdict(list)
+        for line in training_data:
+            label = line[0]
+            text = line[1]
+            trainingDict[label].append(text)
+        return trainingDict
 
 
 
-@app.route("/cnn_train_and_predict/<filename>", methods=['GET'])
-def cnn_train_and_predict(trainingFilename):
-    trainingFilename = "data/ebola_validation_data.txt"
-    dataHelper = DataHelper(trainingFilename, trainingFilename)
+@app.route("/cnn_train_and_predict/<trainingFolder>", methods=['GET'])
+def cnn_train_and_predict(trainingFolder):
+    #trainingFilename = "data/ebola_training_data.txt"
+    validationFilename = "validation_data.txt"
+    dataHelper = DataHelper(trainingFolder, validationFilename)
     global cnn_classifier
-    trainingDict = dataHelper.getTrainingData()
     if cnn_classifier is None:
-        cnn_classifier = CNNEmbeddedVecClassifier(model,3, classdict=eboladict)
+        trainingDict = dataHelper.getTrainingData()
+        cnn_classifier = CNNEmbeddedVecClassifier(model,2, classdict=trainingDict)
         cnn_classifier.train()
     v = dataHelper.getValidationData()
     validation = map(lambda validationDataTuple: validationDataTuple[1], v)
-    validationLabels = map(lambda validationDataTuple: int(validationDataTuple[0]), v)
-    predictionLabels = map(lambda w: 1 if cnn_classifier.score(w)["ebola"] > cnn_classifier.score(w)["other"] else 0,
+    validationLabels = map(lambda validationDataTuple: int(validationDataTuple[0],base=10), v)
+    predictionLabels = map(lambda w: 1 if cnn_classifier.score(w)["1"] > cnn_classifier.score(w)["0"] else 0,
                            validation)
     f1 = f1_score(validationLabels, predictionLabels, average='binary')
     return jsonify(f1)
 
+@app.route("/cnn_train_and_get_prediction_labels/<trainingFolder>", methods=['GET'])
+def cnn_train_and_get_prediction_labels(trainingFolder):
+    validationFilename = "validation_data.txt"
+    dataHelper = DataHelper(trainingFolder, validationFilename)
+    global cnn_classifier
+    cnn_classifier = None
+    if cnn_classifier is None:
+        trainingDict = dataHelper.getTrainingData()
+        cnn_classifier = CNNEmbeddedVecClassifier(model,2, classdict=trainingDict)
+        cnn_classifier.train()
+    v = dataHelper.getValidationData()
+    validation = map(lambda validationDataTuple: (int(validationDataTuple[0],base=10),validationDataTuple[1]), v)
+    actualAndPredictedLabels = map(lambda w: {'actual' : w[0],'predicted': 1} if cnn_classifier.score(w[1])["1"] > cnn_classifier.score(w[1])["0"] else {'actual' : w[0],'predicted': 0},
+                           validation)
+    return jsonify(actualAndPredictedLabels)
+
+@app.route("/cnn_reset/<reset>", methods=['GET'])
+def cnn_reset(reset):
+    global cnn_classifier
+    cnn_classifier = None
+    jsonify("Reset successful.")
 
 
 def get_most_distinguishing_words():
