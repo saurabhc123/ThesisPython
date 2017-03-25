@@ -1,8 +1,12 @@
+import csv
 import json
 
 import decimal
 from flask import Flask, jsonify
 from flask import request
+from numpy import genfromtxt
+from py2app.recipes import numpy
+from sklearn.metrics import f1_score
 
 from classifiers import SumWord2VecClassification
 from classifiers.CNNEmbedVecClassification import CNNEmbeddedVecClassifier
@@ -71,7 +75,55 @@ def cnn_score(word):
         cnn_classifier = CNNEmbeddedVecClassifier(model,3, classdict=eboladict)
         cnn_classifier.train()
     score = {k:float(v) for k,v in cnn_classifier.score(word).iteritems()}
+    #s = get_most_distinguishing_words()
+    #f = cnn_train_and_predict("")
     return jsonify(score)
+
+
+class DataHelper():
+    def __init__(self, trainingFileName,validationFileName):
+        self.trainingFileName = trainingFileName
+        self.validationFileName = validationFileName
+
+    def getValidationData(self):
+        reader = csv.reader(open(self.validationFileName, "rb"), delimiter=",")
+        validation_data = list(reader)
+        return validation_data
+
+    def getTrainingData(self):
+        reader = csv.reader(open(self.trainingFileName, "rb"), delimiter=",")
+        training_data = list(reader)
+        return training_data
+
+
+
+@app.route("/cnn_train_and_predict/<filename>", methods=['GET'])
+def cnn_train_and_predict(trainingFilename):
+    trainingFilename = "data/ebola_validation_data.txt"
+    dataHelper = DataHelper(trainingFilename, trainingFilename)
+    global cnn_classifier
+    trainingDict = dataHelper.getTrainingData()
+    if cnn_classifier is None:
+        cnn_classifier = CNNEmbeddedVecClassifier(model,3, classdict=eboladict)
+        cnn_classifier.train()
+    v = dataHelper.getValidationData()
+    validation = map(lambda validationDataTuple: validationDataTuple[1], v)
+    validationLabels = map(lambda validationDataTuple: int(validationDataTuple[0]), v)
+    predictionLabels = map(lambda w: 1 if cnn_classifier.score(w)["ebola"] > cnn_classifier.score(w)["other"] else 0,
+                           validation)
+    f1 = f1_score(validationLabels, predictionLabels, average='binary')
+    return jsonify(f1)
+
+
+
+def get_most_distinguishing_words():
+    words = []
+    for classtype in eboladict:
+        for classSamples in eboladict[classtype]:
+            words.extend(classSamples.split(" "))
+    scores = {(word, cnn_classifier.score(word)["ebola"]) for word in words}
+    return sorted(scores, key=lambda tup: -tup[1])
+
 
 
 app.run()
