@@ -105,15 +105,15 @@ class DataHelper():
 
 
 
-@app.route("/cnn_train_and_predict/<trainingFolder>", methods=['GET'])
-def cnn_train_and_predict(trainingFolder):
+@app.route("/cnn_train_and_predict_local/<trainingFolder>", methods=['GET'])
+def cnn_train_and_predict_local(trainingFolder):
     #trainingFilename = "data/ebola_training_data.txt"
     validationFilename = "validation_data.txt"
     dataHelper = DataHelper(trainingFolder, validationFilename)
     global cnn_classifier
     if cnn_classifier is None:
-        trainingDict = dataHelper.getTrainingData()
-        cnn_classifier = CNNEmbeddedVecClassifier(model,2, classdict=trainingDict)
+        #trainingDict = dataHelper.getTrainingData()
+        cnn_classifier = CNNEmbeddedVecClassifier(model,2, classdict=eboladict)
         cnn_classifier.train()
     v = dataHelper.getValidationData()
     validation = map(lambda validationDataTuple: validationDataTuple[1], v)
