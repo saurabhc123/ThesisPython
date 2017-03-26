@@ -22,9 +22,9 @@ def clean_sent(lem, sent):
 
 def clean_file(lem, name):
     with open(name) as f:
-        new_sents = filter(lambda x: len(x.split()) > 0, [clean_sent(lem, line.strip()) for line in f.readlines()])
-    for sent in new_sents:
-        print(sent)
+        new_sents = filter(lambda x: len(x[1].split()) > 0, [(line.split(',')[0] ,clean_sent(lem, line.split(',')[1].strip())) for line in f.readlines()])
+    for lab,sent in new_sents:
+        print(str(lab) + "," + str(sent))
 
 
 print(clean_sent(wordnet_lemmatizer,
