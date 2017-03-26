@@ -12,6 +12,9 @@ from chainer import Variable
 from chainer import cuda
 import numpy as np
 from model import LetterClassifyer
+from nltk.corpus import stopwords
+
+
 
 def argument():
     parser = argparse.ArgumentParser()
