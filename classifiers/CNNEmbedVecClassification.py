@@ -58,12 +58,12 @@ class CNNEmbeddedVecClassifier:
 
         # build the deep neural network model
         model = Sequential()
-        model.add(Convolution1D(nb_filter=self.nb_filters,
-                                filter_length=self.n_gram,
-                                border_mode='valid',
-                                activation='relu',
-                                input_shape=(self.maxlen, self.vecsize)))
-        model.add(MaxPooling1D(pool_length=self.maxlen-self.n_gram+1))
+        model.add(Convolution1D(activation='relu',
+                                input_shape=(self.maxlen, self.vecsize),
+                                padding="valid",
+                                filters=self.nb_filters,
+                                kernel_size=self.n_gram))
+        model.add(MaxPooling1D(pool_size=self.maxlen-self.n_gram+1))
         model.add(Flatten())
         model.add(Dense(len(self.classlabels), activation='softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')

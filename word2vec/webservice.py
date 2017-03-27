@@ -1,12 +1,8 @@
 import collections
 import csv
-import json
 
-import decimal
 from flask import Flask, jsonify
 from flask import request
-from numpy import genfromtxt
-from py2app.recipes import numpy
 from sklearn.metrics import f1_score
 
 from classifiers import SumWord2VecClassification
@@ -14,12 +10,37 @@ from classifiers.CNNEmbedVecClassification import CNNEmbeddedVecClassifier
 from classifiers.eboladict import eboladict
 from word2vec import word2vec, avg_feature_vector
 
+
 app = Flask(__name__)
-model = word2vec.get_model()
-file_model = word2vec.get_model_from_file("data/egypt_auxiliary_data.txt")
-#model = file_model
+experiment = "winterstorm"
+auxiliary_file = experiment + "_auxiliary_data.txt"
+validation_file = experiment + "_validation_data.txt"
+model = 1#word2vec.get_model()
+file_model = word2vec.get_model_from_file("data/"+ auxiliary_file)
+model = file_model
 sum_classifier = None
 cnn_classifier = None
+
+class DataHelper():
+    def __init__(self, trainingFolder,validationFileName):
+        self.baseFolderName = "/Users/saur6410/Google Drive/VT/Thesis/Source/ThesisPoC/data/python/"
+        self.trainingFileName = self.baseFolderName + trainingFolder + "/" + "part-00000"
+        self.validationFileName = self.baseFolderName + validationFileName
+
+    def getValidationData(self):
+        reader = csv.reader(open(self.validationFileName, "rb"), delimiter=",")
+        validation_data = list(reader)
+        return validation_data
+
+    def getTrainingData(self):
+        reader = csv.reader(open(self.trainingFileName, "rb"), delimiter=",")
+        training_data = list(reader)
+        trainingDict = collections.defaultdict(list)
+        for line in training_data:
+            label = line[0]
+            text = line[1]
+            trainingDict[label].append(text)
+        return trainingDict
 
 
 @app.route("/getvector/<sentence>")
@@ -83,33 +104,10 @@ def cnn_score(word):
     return jsonify(score)
 
 
-class DataHelper():
-    def __init__(self, trainingFolder,validationFileName):
-        self.baseFolderName = "/Users/saur6410/Google Drive/VT/Thesis/Source/ThesisPoC/data/python/"
-        self.trainingFileName = self.baseFolderName + trainingFolder + "/" + "part-00000"
-        self.validationFileName = self.baseFolderName + validationFileName
-
-    def getValidationData(self):
-        reader = csv.reader(open(self.validationFileName, "rb"), delimiter=",")
-        validation_data = list(reader)
-        return validation_data
-
-    def getTrainingData(self):
-        reader = csv.reader(open(self.trainingFileName, "rb"), delimiter=",")
-        training_data = list(reader)
-        trainingDict = collections.defaultdict(list)
-        for line in training_data:
-            label = line[0]
-            text = line[1]
-            trainingDict[label].append(text)
-        return trainingDict
-
-
-
 @app.route("/cnn_train_and_predict_local/<trainingFolder>", methods=['GET'])
 def cnn_train_and_predict_local(trainingFolder):
     #trainingFilename = "data/ebola_training_data.txt"
-    validationFilename = "validation_data.txt"
+    validationFilename = validation_file#"validation_data.txt"
     dataHelper = DataHelper(trainingFolder, validationFilename)
     global cnn_classifier
     if cnn_classifier is None:
@@ -124,9 +122,25 @@ def cnn_train_and_predict_local(trainingFolder):
     f1 = f1_score(validationLabels, predictionLabels, average='binary')
     return jsonify(f1)
 
+@app.route("/cnn_train_and_get_prediction_labels_local/<trainingFolder>", methods=['GET'])
+def cnn_train_and_get_prediction_labels_local(trainingFolder):
+    validationFilename = validation_file#"validation_data.txt"
+    dataHelper = DataHelper(trainingFolder, validationFilename)
+    global cnn_classifier
+    cnn_classifier = None
+    if cnn_classifier is None:
+        trainingDict = dataHelper.getTrainingData()
+        cnn_classifier = CNNEmbeddedVecClassifier(file_model,3, classdict=trainingDict)
+        cnn_classifier.train()
+    v = dataHelper.getValidationData()
+    validation = map(lambda validationDataTuple: (int(validationDataTuple[0],base=10),validationDataTuple[1]), v)
+    actualAndPredictedLabels = map(lambda w: {'actual' : w[0],'predicted': 1} if cnn_classifier.score(w[1])["1"] > cnn_classifier.score(w[1])["0"] else {'actual' : w[0],'predicted': 0},
+                           validation)
+    return jsonify(actualAndPredictedLabels)
+
 @app.route("/cnn_train_and_get_prediction_labels/<trainingFolder>", methods=['GET'])
 def cnn_train_and_get_prediction_labels(trainingFolder):
-    validationFilename = "validation_data.txt"
+    validationFilename = validation_file#"validation_data.txt"
     dataHelper = DataHelper(trainingFolder, validationFilename)
     global cnn_classifier
     cnn_classifier = None

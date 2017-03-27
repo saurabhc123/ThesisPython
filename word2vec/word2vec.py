@@ -47,8 +47,16 @@ class word2vec:
         if not name in word2vec.models:
             sentences = []
             with open(name,"r") as f:
-                sentences = map(lambda x: x.split(), f.readlines())
-            file_model = gensim.models.Word2Vec(sentences=sentences, size=300, min_count=1)
+                sentences=map(lambda x: x.split(',')[1],f.readlines())
+                sentences=map(lambda x: x.split(), sentences)
+                # sentences = []
+                # sentences.append('egypt revolution start in a great country'.split())
+                # sentences.append('egypt revolution causes riots'.split())
+                # sentences.append('disaster in japan. fukushima plant explode'.split())
+                # sentences.append('ebola is spreading everywhere'.split())
+            file_model = gensim.models.Word2Vec(size=300,min_count=5, window=20)
+            file_model.build_vocab(sentences)
+            file_model.train(sentences)
             word2vec.models[name] = file_model.wv
         return word2vec.models[name]
 
