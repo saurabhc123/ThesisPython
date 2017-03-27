@@ -140,6 +140,24 @@ def cnn_train_and_get_prediction_labels(trainingFolder):
                            validation)
     return jsonify(actualAndPredictedLabels)
 
+@app.route("/cnn_train_and_get_prediction_labels_local/<trainingFolder>", methods=['GET'])
+def cnn_train_and_get_prediction_labels_local(trainingFolder):
+    validationFilename = "validation_data.txt"
+    dataHelper = DataHelper(trainingFolder, validationFilename)
+    global cnn_classifier
+    cnn_classifier = None
+    if cnn_classifier is None:
+        trainingDict = dataHelper.getTrainingData()
+        cnn_classifier = CNNEmbeddedVecClassifier(file_model,2, classdict=trainingDict)
+        cnn_classifier.train()
+    v = dataHelper.getValidationData()
+    validation = map(lambda validationDataTuple: (int(validationDataTuple[0],base=10),validationDataTuple[1]), v)
+    actualAndPredictedLabels = map(lambda w: {'actual' : w[0],'predicted': 1} if cnn_classifier.score(w[1])["1"] > cnn_classifier.score(w[1])["0"] else {'actual' : w[0],'predicted': 0},
+                           validation)
+    return jsonify(actualAndPredictedLabels)
+
+
+
 @app.route("/cnn_reset/<reset>", methods=['GET'])
 def cnn_reset(reset):
     global cnn_classifier

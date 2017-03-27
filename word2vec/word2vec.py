@@ -20,8 +20,8 @@ def avg_feature_vector(words, model, num_features, index2word_set):
 def read_from_file(name,model):
     with open(name,"r") as f:
         lines = f.readlines()
-        tweets_only = map(lambda line: line.split(';')[1].rstrip().split(" "), lines)
-        lables_only = map(lambda line: line.split(';')[0].rstrip(), lines)
+        tweets_only = map(lambda line: line.split(',')[1].rstrip().split(" "), lines)
+        lables_only = map(lambda line: line.split(',')[0].rstrip(), lines)
         vecs = map(lambda t: avg_feature_vector(t, model, 300, model.index2word),tweets_only)
         return zip(lables_only,vecs)
 
@@ -47,7 +47,7 @@ class word2vec:
         if not name in word2vec.models:
             sentences = []
             with open(name,"r") as f:
-                sentences = map(lambda x: x.split(), f.readlines())
+                sentences = map(lambda x: x.split(',')[1].split(), f.readlines())
             file_model = gensim.models.Word2Vec(sentences=sentences, size=300, min_count=1)
             word2vec.models[name] = file_model.wv
         return word2vec.models[name]

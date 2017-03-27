@@ -6,7 +6,7 @@ experiment = "egypt"
 auxiliary_file = experiment + "_auxiliary_data.txt"
 validation_file = experiment + "_validation_data.txt"
 
-def local_vector_experiment():
+def local_vector_cnn_experiment():
     baseFolderName = "/Users/saur6410/Google Drive/VT/Thesis/Source/ThesisPoC/data/python/"
     trainingFileName = baseFolderName +  "/" + "part-00000"
     validationFileName = baseFolderName + validation_file
@@ -32,7 +32,14 @@ def local_vector_experiment():
     print(cnn_classifier.score('fukushima npp accident nuclear disaster even one die acute radiation sickness via'))
 
 
+def local_vector_experiment():
+    file_model = word2vec.word2vec.get_model_from_file("data/"+ "1k_results_lem.txt")
+    print(file_model.most_similar(positive=["obesity"]))
+    print(file_model.most_similar(positive=["disease"]))
+    print(file_model.most_similar(positive=["fukushima"]))
+    print(file_model.most_similar(positive=["japan"]))
 
 
 if __name__ == "__main__":
     local_vector_experiment()
+    #local_vector_cnn_experiment()
