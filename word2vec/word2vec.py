@@ -20,8 +20,8 @@ def avg_feature_vector(words, model, num_features, index2word_set):
 def read_from_file(name,model):
     with open(name,"r") as f:
         lines = f.readlines()
-        tweets_only = map(lambda line: line.split(';')[1].rstrip().split(" "), lines)
-        lables_only = map(lambda line: line.split(';')[0].rstrip(), lines)
+        tweets_only = map(lambda line: line.split(',')[1].rstrip().split(" "), lines)
+        lables_only = map(lambda line: line.split(',')[0].rstrip(), lines)
         vecs = map(lambda t: avg_feature_vector(t, model, 300, model.index2word),tweets_only)
         return zip(lables_only,vecs)
 
@@ -47,11 +47,18 @@ class word2vec:
         if not name in word2vec.models:
             sentences = []
             with open(name,"r") as f:
-                sentences = map(lambda x: x.split(), f.readlines())
-            file_model = gensim.models.Word2Vec(sentences=sentences, size=300, min_count=1)
+                sentences = map(lambda x: word2vec.extract_sentence(x).split(), f.readlines())
+            file_model = gensim.models.Word2Vec(sentences=sentences, size=300, min_count=3, window=5)
+            # sentences = []
+            # sentences.append('ebola threat real allow african conference nyc risky stupid wrong'.split())
+            # file_model.similar_by_vector(sentences)
             word2vec.models[name] = file_model.wv
         return word2vec.models[name]
 
+    @staticmethod
+    def extract_sentence(line):
+        lineContent = line.split(',')
+        return (lineContent[1] if len(lineContent) > 1 else lineContent[0])
 
 
 if __name__ == "__main__":
