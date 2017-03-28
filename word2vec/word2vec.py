@@ -47,11 +47,18 @@ class word2vec:
         if not name in word2vec.models:
             sentences = []
             with open(name,"r") as f:
-                sentences = map(lambda x: x.split(',')[1].split(), f.readlines())
-            file_model = gensim.models.Word2Vec(sentences=sentences, size=300, min_count=1)
+                sentences = map(lambda x: word2vec.extract_sentence(x).split(), f.readlines())
+            file_model = gensim.models.Word2Vec(sentences=sentences, size=300, min_count=3, window=5)
+            # sentences = []
+            # sentences.append('ebola threat real allow african conference nyc risky stupid wrong'.split())
+            # file_model.similar_by_vector(sentences)
             word2vec.models[name] = file_model.wv
         return word2vec.models[name]
 
+    @staticmethod
+    def extract_sentence(line):
+        lineContent = line.split(',')
+        return (lineContent[1] if len(lineContent) > 1 else lineContent[0])
 
 
 if __name__ == "__main__":

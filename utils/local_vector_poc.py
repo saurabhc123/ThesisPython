@@ -1,5 +1,6 @@
 from sklearn.metrics import f1_score
 
+from classifiers import eboladict
 from word2vec import word2vec
 
 experiment = "egypt"
@@ -18,9 +19,9 @@ def local_vector_cnn_experiment():
     dataHelper = DataHelper(experiment, validation_file)
     cnn_classifier = None
     if cnn_classifier is None:
-        trainingDict = dataHelper.getTrainingData()
+        #trainingDict = dataHelper.getTrainingData()
         from classifiers.CNNEmbedVecClassification import CNNEmbeddedVecClassifier
-        cnn_classifier = CNNEmbeddedVecClassifier(file_model,1, classdict=trainingDict)
+        cnn_classifier = CNNEmbeddedVecClassifier(file_model,3, classdict=eboladict)
         cnn_classifier.train()
     v = dataHelper.getValidationData()
     validation = map(lambda validationDataTuple: (int(validationDataTuple[0],base=10),validationDataTuple[1]), v)
@@ -34,10 +35,14 @@ def local_vector_cnn_experiment():
 
 def local_vector_experiment():
     file_model = word2vec.word2vec.get_model_from_file("data/"+ "1k_results_lem.txt")
-    print(file_model.most_similar(positive=["obesity"]))
-    print(file_model.most_similar(positive=["disease"]))
-    print(file_model.most_similar(positive=["fukushima"]))
+    #print(file_model.most_similar(positive=["obesity"]))
+    print(file_model.similarity('obesity', 'winterstorm'))
+    print(file_model.similarity('flag', 'weight'))
+    print(file_model.similarity('japan', 'fukushima'))
     print(file_model.most_similar(positive=["japan"]))
+    print(file_model.most_similar(positive=["fukushima"]))
+    print(file_model.most_similar(positive=["disease"]))
+    print(file_model.most_similar(positive=["obesity"]))
 
 
 if __name__ == "__main__":

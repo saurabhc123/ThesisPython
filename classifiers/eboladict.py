@@ -1,4 +1,4 @@
-eboladict={'1': ['liberia record ebola death despite declare ebolum'
+eboladict={'1': ['liberia record ebola death despite declare ebola'
             'hunger kill ebola consider significant problem since rich people can die',
             'ebola threat real allow african conference nyc risky stupid wrong',
             'ebola diagnose texas first case found',
