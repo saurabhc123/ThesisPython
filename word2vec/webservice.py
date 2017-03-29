@@ -114,15 +114,16 @@ class DataHelper():
 
 
 
-@app.route("/cnn_train_and_predict_local/<trainingFolder>", methods=['GET'])
-def cnn_train_and_predict_local(trainingFolder):
-    #trainingFilename = "data/ebola_training_data.txt"
+@app.route("/cnn_train_and_predict_local", methods=['GET'])
+def cnn_train_and_predict_local():
+    trainingFolderName = request.args.get('trainingFolder').split()
+    ngram = request.args.get('ngram').split()
     validationFilename = "validation_data.txt"
-    dataHelper = DataHelper(trainingFolder, validationFilename)
+    dataHelper = DataHelper(trainingFolderName, validationFilename)
     global cnn_classifier
     if cnn_classifier is None:
         #trainingDict = dataHelper.getTrainingData()
-        cnn_classifier = CNNEmbeddedVecClassifier(model,3, classdict=eboladict)
+        cnn_classifier = CNNEmbeddedVecClassifier(model,ngram, classdict=eboladict)
         cnn_classifier.train()
     v = dataHelper.getValidationData()
     validation = map(lambda validationDataTuple: validationDataTuple[1], v)
@@ -132,14 +133,16 @@ def cnn_train_and_predict_local(trainingFolder):
     f1 = f1_score(validationLabels, predictionLabels, average='binary')
     return jsonify(f1)
 
-@app.route("/cnn_train_and_get_prediction_labels/<trainingFolder>", methods=['GET'])
-def cnn_train_and_get_prediction_labels(trainingFolder):
-    dataHelper = DataHelper(trainingFolder, validationFilename)
+@app.route("/cnn_train_and_get_prediction_labels", methods=['GET'])
+def cnn_train_and_get_prediction_labels():
+    trainingFolderName = request.args.get('trainingFolder')
+    ngram = int(request.args.get('ngram'))
+    dataHelper = DataHelper(trainingFolderName, validationFilename)
     global cnn_classifier
     cnn_classifier = None
     if cnn_classifier is None:
         trainingDict = dataHelper.getTrainingData()
-        cnn_classifier = CNNEmbeddedVecClassifier(model,2, classdict=trainingDict)
+        cnn_classifier = CNNEmbeddedVecClassifier(model,ngram, classdict=trainingDict)
         cnn_classifier.train()
     v = dataHelper.getValidationData()
     validation = map(lambda validationDataTuple: (int(validationDataTuple[0],base=10),validationDataTuple[1]), v)
@@ -147,15 +150,16 @@ def cnn_train_and_get_prediction_labels(trainingFolder):
                            validation)
     return jsonify(actualAndPredictedLabels)
 
-@app.route("/cnn_train_and_get_prediction_labels_local/<trainingFolder>", methods=['GET'])
-def cnn_train_and_get_prediction_labels_local(trainingFolder):
-    #validationFilename = "validation_data.txt"
-    dataHelper = DataHelper(trainingFolder, validationFilename)
+@app.route("/cnn_train_and_get_prediction_labels_local", methods=['GET'])
+def cnn_train_and_get_prediction_labels_local():
+    trainingFolderName = request.args.get('trainingFolder')
+    ngram = int(request.args.get('ngram'))
+    dataHelper = DataHelper(trainingFolderName, validationFilename)
     global cnn_classifier
     cnn_classifier = None
     if cnn_classifier is None:
         trainingDict = dataHelper.getTrainingData()
-        cnn_classifier = CNNEmbeddedVecClassifier(file_model,2, classdict=trainingDict)
+        cnn_classifier = CNNEmbeddedVecClassifier(file_model,ngram, classdict=trainingDict)
         cnn_classifier.train()
     v = dataHelper.getValidationData()
     validation = map(lambda validationDataTuple: (int(validationDataTuple[0],base=10),validationDataTuple[1]), v)
