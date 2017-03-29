@@ -15,8 +15,16 @@ from classifiers.eboladict import eboladict
 from word2vec import word2vec, avg_feature_vector
 
 app = Flask(__name__)
+
+experimentName = "ebola"
+validationFilename = experimentName + "_validation_data.txt"
+
+def getAuxiliaryFilename():
+    auxiliaryFolderName = "data/"
+    return auxiliaryFolderName + experimentName + "_auxiliary_data.txt"
+
 model = word2vec.get_model()
-file_model = word2vec.get_model_from_file("data/egypt_auxiliary_data.txt")
+file_model = word2vec.get_model_from_file(getAuxiliaryFilename())
 #model = file_model
 sum_classifier = None
 cnn_classifier = None
@@ -114,7 +122,7 @@ def cnn_train_and_predict_local(trainingFolder):
     global cnn_classifier
     if cnn_classifier is None:
         #trainingDict = dataHelper.getTrainingData()
-        cnn_classifier = CNNEmbeddedVecClassifier(model,2, classdict=eboladict)
+        cnn_classifier = CNNEmbeddedVecClassifier(model,3, classdict=eboladict)
         cnn_classifier.train()
     v = dataHelper.getValidationData()
     validation = map(lambda validationDataTuple: validationDataTuple[1], v)
@@ -126,7 +134,6 @@ def cnn_train_and_predict_local(trainingFolder):
 
 @app.route("/cnn_train_and_get_prediction_labels/<trainingFolder>", methods=['GET'])
 def cnn_train_and_get_prediction_labels(trainingFolder):
-    validationFilename = "validation_data.txt"
     dataHelper = DataHelper(trainingFolder, validationFilename)
     global cnn_classifier
     cnn_classifier = None
@@ -142,7 +149,7 @@ def cnn_train_and_get_prediction_labels(trainingFolder):
 
 @app.route("/cnn_train_and_get_prediction_labels_local/<trainingFolder>", methods=['GET'])
 def cnn_train_and_get_prediction_labels_local(trainingFolder):
-    validationFilename = "validation_data.txt"
+    #validationFilename = "validation_data.txt"
     dataHelper = DataHelper(trainingFolder, validationFilename)
     global cnn_classifier
     cnn_classifier = None
@@ -158,11 +165,14 @@ def cnn_train_and_get_prediction_labels_local(trainingFolder):
 
 
 
-@app.route("/cnn_reset/<reset>", methods=['GET'])
-def cnn_reset(reset):
-    global cnn_classifier
+@app.route("/cnn_reset/<experiment_name>", methods=['GET'])
+def cnn_reset(experiment_name):
+    global cnn_classifier, experimentName, file_model, validationFilename
     cnn_classifier = None
-    jsonify("Reset successful.")
+    experimentName = experiment_name
+    file_model = word2vec.get_model_from_file(getAuxiliaryFilename())
+    validationFilename = experimentName + "_validation_data.txt"
+    return 'Reset successful'
 
 
 def get_most_distinguishing_words():

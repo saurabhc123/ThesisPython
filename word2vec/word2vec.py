@@ -48,7 +48,7 @@ class word2vec:
             sentences = []
             with open(name,"r") as f:
                 sentences = map(lambda x: word2vec.extract_sentence(x).split(), f.readlines())
-            file_model = gensim.models.Word2Vec(sentences=sentences, size=300, min_count=3, window=5)
+            file_model = gensim.models.Word2Vec(sentences=sentences, size=300, min_count=1, window=5)
             # sentences = []
             # sentences.append('ebola threat real allow african conference nyc risky stupid wrong'.split())
             # file_model.similar_by_vector(sentences)
