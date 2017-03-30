@@ -16,14 +16,16 @@ from word2vec import word2vec, avg_feature_vector
 
 app = Flask(__name__)
 
-experimentName = "ebola"
+experimentName = "egypt"
 validationFilename = experimentName + "_validation_data.txt"
 
 def getAuxiliaryFilename():
     auxiliaryFolderName = "data/"
     return auxiliaryFolderName + experimentName + "_auxiliary_data.txt"
 
+print("Loading the Word2Vec model...")
 model = word2vec.get_model()
+print("Loading complete.")
 file_model = word2vec.get_model_from_file(getAuxiliaryFilename())
 #model = file_model
 sum_classifier = None
@@ -135,6 +137,7 @@ def cnn_train_and_predict_local():
 
 @app.route("/cnn_train_and_get_prediction_labels", methods=['GET'])
 def cnn_train_and_get_prediction_labels():
+    print("Classifier cnn_train_and_get_prediction_labels invoked")
     trainingFolderName = request.args.get('trainingFolder')
     ngram = int(request.args.get('ngram'))
     dataHelper = DataHelper(trainingFolderName, validationFilename)
@@ -152,6 +155,7 @@ def cnn_train_and_get_prediction_labels():
 
 @app.route("/cnn_train_and_get_prediction_labels_local", methods=['GET'])
 def cnn_train_and_get_prediction_labels_local():
+    print("Classifier cnn_train_and_get_prediction_labels invoked")
     trainingFolderName = request.args.get('trainingFolder')
     ngram = int(request.args.get('ngram'))
     dataHelper = DataHelper(trainingFolderName, validationFilename)
