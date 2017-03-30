@@ -15,8 +15,18 @@ from classifiers.eboladict import eboladict
 from word2vec import word2vec, avg_feature_vector
 
 app = Flask(__name__)
+
+experimentName = "egypt"
+validationFilename = experimentName + "_validation_data.txt"
+
+def getAuxiliaryFilename():
+    auxiliaryFolderName = "data/"
+    return auxiliaryFolderName + experimentName + "_auxiliary_data.txt"
+
+print("Loading the Word2Vec model...")
 model = word2vec.get_model()
-file_model = word2vec.get_model_from_file("data/egypt_auxiliary_data.txt")
+print("Loading complete.")
+file_model = word2vec.get_model_from_file(getAuxiliaryFilename())
 #model = file_model
 sum_classifier = None
 cnn_classifier = None
@@ -106,15 +116,16 @@ class DataHelper():
 
 
 
-@app.route("/cnn_train_and_predict_local/<trainingFolder>", methods=['GET'])
-def cnn_train_and_predict_local(trainingFolder):
-    #trainingFilename = "data/ebola_training_data.txt"
+@app.route("/cnn_train_and_predict_local", methods=['GET'])
+def cnn_train_and_predict_local():
+    trainingFolderName = request.args.get('trainingFolder').split()
+    ngram = request.args.get('ngram').split()
     validationFilename = "validation_data.txt"
-    dataHelper = DataHelper(trainingFolder, validationFilename)
+    dataHelper = DataHelper(trainingFolderName, validationFilename)
     global cnn_classifier
     if cnn_classifier is None:
         #trainingDict = dataHelper.getTrainingData()
-        cnn_classifier = CNNEmbeddedVecClassifier(model,2, classdict=eboladict)
+        cnn_classifier = CNNEmbeddedVecClassifier(model,ngram, classdict=eboladict)
         cnn_classifier.train()
     v = dataHelper.getValidationData()
     validation = map(lambda validationDataTuple: validationDataTuple[1], v)
@@ -124,15 +135,17 @@ def cnn_train_and_predict_local(trainingFolder):
     f1 = f1_score(validationLabels, predictionLabels, average='binary')
     return jsonify(f1)
 
-@app.route("/cnn_train_and_get_prediction_labels/<trainingFolder>", methods=['GET'])
-def cnn_train_and_get_prediction_labels(trainingFolder):
-    validationFilename = "validation_data.txt"
-    dataHelper = DataHelper(trainingFolder, validationFilename)
+@app.route("/cnn_train_and_get_prediction_labels", methods=['GET'])
+def cnn_train_and_get_prediction_labels():
+    print("Classifier cnn_train_and_get_prediction_labels invoked")
+    trainingFolderName = request.args.get('trainingFolder')
+    ngram = int(request.args.get('ngram'))
+    dataHelper = DataHelper(trainingFolderName, validationFilename)
     global cnn_classifier
     cnn_classifier = None
     if cnn_classifier is None:
         trainingDict = dataHelper.getTrainingData()
-        cnn_classifier = CNNEmbeddedVecClassifier(model,2, classdict=trainingDict)
+        cnn_classifier = CNNEmbeddedVecClassifier(model,ngram, classdict=trainingDict)
         cnn_classifier.train()
     v = dataHelper.getValidationData()
     validation = map(lambda validationDataTuple: (int(validationDataTuple[0],base=10),validationDataTuple[1]), v)
@@ -140,15 +153,17 @@ def cnn_train_and_get_prediction_labels(trainingFolder):
                            validation)
     return jsonify(actualAndPredictedLabels)
 
-@app.route("/cnn_train_and_get_prediction_labels_local/<trainingFolder>", methods=['GET'])
-def cnn_train_and_get_prediction_labels_local(trainingFolder):
-    validationFilename = "validation_data.txt"
-    dataHelper = DataHelper(trainingFolder, validationFilename)
+@app.route("/cnn_train_and_get_prediction_labels_local", methods=['GET'])
+def cnn_train_and_get_prediction_labels_local():
+    print("Classifier cnn_train_and_get_prediction_labels invoked")
+    trainingFolderName = request.args.get('trainingFolder')
+    ngram = int(request.args.get('ngram'))
+    dataHelper = DataHelper(trainingFolderName, validationFilename)
     global cnn_classifier
     cnn_classifier = None
     if cnn_classifier is None:
         trainingDict = dataHelper.getTrainingData()
-        cnn_classifier = CNNEmbeddedVecClassifier(file_model,2, classdict=trainingDict)
+        cnn_classifier = CNNEmbeddedVecClassifier(file_model,ngram, classdict=trainingDict)
         cnn_classifier.train()
     v = dataHelper.getValidationData()
     validation = map(lambda validationDataTuple: (int(validationDataTuple[0],base=10),validationDataTuple[1]), v)
@@ -158,11 +173,14 @@ def cnn_train_and_get_prediction_labels_local(trainingFolder):
 
 
 
-@app.route("/cnn_reset/<reset>", methods=['GET'])
-def cnn_reset(reset):
-    global cnn_classifier
+@app.route("/cnn_reset/<experiment_name>", methods=['GET'])
+def cnn_reset(experiment_name):
+    global cnn_classifier, experimentName, file_model, validationFilename
     cnn_classifier = None
-    jsonify("Reset successful.")
+    experimentName = experiment_name
+    file_model = word2vec.get_model_from_file(getAuxiliaryFilename())
+    validationFilename = experimentName + "_validation_data.txt"
+    return 'Reset successful'
 
 
 def get_most_distinguishing_words():
